@@ -34,11 +34,12 @@ fun MaakMaiNavGraph(
             arguments = listOf(
                 navArgument(PATH_ARG) { type = NavType.StringType; defaultValue = "" }
             )
-        ) { entry ->
+        ) {
             BrowseScreen(
-                path = entry.arguments?.getString(PATH_ARG) ?: "",
-                onFolderClick = { path -> navActions.navigateToBrowse(path) },
-                onFileClick = {})
+//                path = entry.arguments?.getString(PATH_ARG) ?: "",
+//                onFolderClick = { path -> navActions.navigateToBrowse(path) },
+//                onFileClick = {}
+            )
         }
     }
 }
