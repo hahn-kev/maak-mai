@@ -12,7 +12,7 @@ import org.hahn.maakmai.data.BookmarkRepository
 import org.hahn.maakmai.data.BookmarkRepositoryMemory
 import org.hahn.maakmai.data.BookmarkRepositoryRoom
 import org.hahn.maakmai.data.FolderRepository
-import org.hahn.maakmai.data.FolderRepositoryMemory
+import org.hahn.maakmai.data.FolderRepositoryRoom
 import org.hahn.maakmai.data.source.local.MaakMaiDatabase
 import javax.inject.Singleton
 
@@ -25,7 +25,7 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindFolderRepository(impl: FolderRepositoryMemory): FolderRepository
+    abstract fun bindFolderRepository(impl: FolderRepositoryRoom): FolderRepository
 }
 
 
@@ -41,11 +41,17 @@ object DatabaseModule {
         context,
         MaakMaiDatabase::class.java,
         "MaakMai.db"
-    ).build()
+    )
+    .build()
 
     @Provides
     fun provideBookmarkDao(
         database: MaakMaiDatabase,
     ) = database.bookmarkDao()
+
+    @Provides
+    fun provideFolderDao(
+        database: MaakMaiDatabase,
+    ) = database.folderDao()
 
 }
