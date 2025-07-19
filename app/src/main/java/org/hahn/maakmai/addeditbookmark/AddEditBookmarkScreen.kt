@@ -7,7 +7,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -18,10 +21,13 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusManager
@@ -48,10 +54,13 @@ fun AddEditBookmarkScreen(
     topBarTitle: String,
     modifier: Modifier = Modifier,
     onBookmarkUpdate: () -> Unit = {},
+    onBookmarkDelete: () -> Unit = {},
     onBack: () -> Unit = {},
     viewModel: AddEditBookmarkViewModel = hiltViewModel(),
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
 ) {
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -78,16 +87,48 @@ fun AddEditBookmarkScreen(
             description = uiState.description,
             url = uiState.url,
             tags = uiState.tags,
+            showDelete = !uiState.isNew,
             onTitleChanged = viewModel::updateTitle,
             onDescriptionChanged = viewModel::updateDescription,
             onUrlChanged = viewModel::updateUrl,
             onTagsChanged = viewModel::updateTags,
+            onDeleteClick = { showDeleteConfirmation = true },
             modifier = Modifier.padding(paddingValues)
         )
+
+        // Delete confirmation dialog
+        if (showDeleteConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirmation = false },
+                title = { Text("Delete Bookmark") },
+                text = { Text("Are you sure you want to delete this bookmark?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDeleteConfirmation = false
+                            viewModel.deleteBookmark()
+                        }
+                    ) {
+                        Text("Delete")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirmation = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
 
         LaunchedEffect(uiState.isBookmarkSaved) {
             if (uiState.isBookmarkSaved) {
                 onBookmarkUpdate()
+            }
+        }
+
+        LaunchedEffect(uiState.isBookmarkDeleted) {
+            if (uiState.isBookmarkDeleted) {
+                onBookmarkDelete()
             }
         }
     }
@@ -103,6 +144,8 @@ private fun AddEditBookmarkContent(
     onDescriptionChanged: (String) -> Unit = {},
     onUrlChanged: (String?) -> Unit = {},
     onTagsChanged: (List<String>) -> Unit = {},
+    showDelete: Boolean = false,
+    onDeleteClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
@@ -185,6 +228,22 @@ private fun AddEditBookmarkContent(
                 onDone = { focusManager.clearFocus() }
             )
         )
+
+        if (showDelete) {
+            Button(
+                onClick = onDeleteClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp)
+            ) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Delete",
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Text("Delete Bookmark")
+            }
+        }
     }
 }
 

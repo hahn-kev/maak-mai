@@ -20,7 +20,9 @@ data class AddEditBookmarkUiState(
     val url: String? = null,
     val tags: List<String> = listOf(),
     val isLoading: Boolean = false,
-    val isBookmarkSaved: Boolean = false
+    val isBookmarkSaved: Boolean = false,
+    val isBookmarkDeleted: Boolean = false,
+    val isNew: Boolean = true
 )
 
 @HiltViewModel
@@ -32,7 +34,8 @@ class AddEditBookmarkViewModel @Inject constructor(
     private val path: String? = savedStateHandle[MaakMaiArgs.PATH_ARG]
 
     private val _uiState = MutableStateFlow(AddEditBookmarkUiState(
-        tags = path?.split("/")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
+        tags = path?.split("/")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList(),
+        isNew = bookmarkId == null
     ))
     val uiState = _uiState.asStateFlow();
 
@@ -106,6 +109,21 @@ class AddEditBookmarkViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     isBookmarkSaved = true
+                )
+            }
+        }
+    }
+
+    fun deleteBookmark() {
+        if (bookmarkId == null) {
+            return
+        }
+
+        viewModelScope.launch {
+            bookmarkRepository.deleteBookmark(bookmarkId)
+            _uiState.update {
+                it.copy(
+                    isBookmarkDeleted = true
                 )
             }
         }
