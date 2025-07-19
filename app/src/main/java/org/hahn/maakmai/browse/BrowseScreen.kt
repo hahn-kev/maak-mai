@@ -3,8 +3,10 @@ package org.hahn.maakmai.browse
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -146,24 +148,92 @@ fun BrowseContent(
     onSetShowAll: (Boolean) -> Unit = {},
     onBackClick: () -> Unit = {},
 ) {
-    Column(
-        modifier = modifier
-    ) {
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 128.dp)
+    if (tagFolders.isEmpty() && bookmarks.isEmpty()) {
+        EmptyStateView(modifier = modifier)
+    } else {
+        Column(
+            modifier = modifier
         ) {
-            items(tagFolders) { tagFolder ->
-                FolderCard(tagFolder.folder, { onFolderClick(tagFolder) })
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 128.dp)
+            ) {
+                items(tagFolders) { tagFolder ->
+                    FolderCard(tagFolder.folder, { onFolderClick(tagFolder) })
+                }
+            }
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(
+                    minSize = 180.dp
+                )
+            ) {
+                items(bookmarks) { bookmark ->
+                    BookmarkCard(bookmark, onBookmarkClick)
+                }
             }
         }
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(
-                minSize = 180.dp
-            )
-        ) {
+    }
+}
 
-            items(bookmarks) { bookmark ->
-                BookmarkCard(bookmark, onBookmarkClick)
+@Composable
+fun EmptyStateView(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Bookmark,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "No bookmarks or folders",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(top = 16.dp)
+            )
+            Text(
+                text = "Add a bookmark or folder to get started",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+            Row(
+                modifier = Modifier.padding(top = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.BookmarkAdd,
+                        contentDescription = "Add bookmark",
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.secondary
+                    )
+                    Text(
+                        text = "Add Bookmark",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CreateNewFolder,
+                        contentDescription = "Add folder",
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.secondary
+                    )
+                    Text(
+                        text = "Add Folder",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
             }
         }
     }
@@ -259,6 +329,33 @@ fun BrowseContentPreview() {
                 onBookmarkClick = {},
                 showAll = true
             )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun EmptyStatePreview() {
+    MaterialTheme {
+        Surface {
+            BrowseContent(
+                bookmarks = emptyList(),
+                tagFolders = emptyList(),
+                path = "/",
+                onFolderClick = {},
+                onBookmarkClick = {},
+                showAll = true
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun EmptyStateViewPreview() {
+    MaterialTheme {
+        Surface {
+            EmptyStateView()
         }
     }
 }
