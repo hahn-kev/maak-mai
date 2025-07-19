@@ -10,9 +10,12 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import org.hahn.maakmai.MaakMaiArgs.PATH_ARG
+import org.hahn.maakmai.data.BookmarkRepository
+import org.hahn.maakmai.data.FolderRepository
 import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
 import org.hahn.maakmai.util.WhileUiSubscribed
+import java.util.UUID
 import javax.inject.Inject
 
 data class BrowseUiState(
@@ -33,25 +36,25 @@ const val SHOW_ALL_SAVED_STATE_KEY = "SHOW_ALL_SAVED_STATE_KEY"
 
 @HiltViewModel
 class BrowseViewModel @Inject constructor(
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val bookmarkRepository: BookmarkRepository,
+    private val folderRepository: FolderRepository
 ) : ViewModel() {
     private val currentPath: String = savedStateHandle[PATH_ARG]!!
     private val _showAll = savedStateHandle.getStateFlow(SHOW_ALL_SAVED_STATE_KEY, false)
-    private val _bookmarks = MutableStateFlow(listOf<Bookmark>())
-    private val _tagFolders = MutableStateFlow(listOf<TagFolder>())
+    private val _bookmarks = bookmarkRepository.getBookmarksStream()
+    private val _tagFolders = folderRepository.getFoldersStream()
 
     private val _tags = currentPath.split("/").filter { f -> f.isNotEmpty() }.toHashSet()
     private val _currentFolder = _tagFolders.map { folders ->
         getCurrentFolder(currentPath, folders)
     }
-    private val _visibleFolders = _currentFolder.combine(_tagFolders) { currentFolder, folders ->
-        getVisibleFolders(currentFolder, folders)
-    }
+    private val _visibleFolders = combine(_currentFolder, _tagFolders) { currentFolder, folders -> currentFolder?.children ?: folders }
     private val _visibleBookmarks = combine(_bookmarks, _currentFolder, _showAll, _visibleFolders)
     { bookmarks, currentFolder, showAll, visibleFolders ->
         getVisibleBookmarks(
             _tags, if (!showAll) {
-                currentFolder ?: TagFolder(tag = "root", children = visibleFolders.map { f -> f.tag })
+                currentFolder ?: TagFolder(tag = "root", children = visibleFolders, id = UUID.randomUUID())
             } else {
                 null
             }, bookmarks
@@ -103,19 +106,12 @@ class BrowseViewModel @Inject constructor(
         savedStateHandle[SHOW_ALL_SAVED_STATE_KEY] = showAll
     }
 
-
-    private fun getVisibleFolders(currentFolder: TagFolder?, tagFolders: List<TagFolder>): List<TagFolder> {
-        return if (currentFolder != null) {
-            currentFolder.children.map { c -> tagFolders.single { f -> f.tag == c } }
-        } else {
-            tagFolders.filter { folder -> folder.rootFolder };
-        }
-    }
-
     private fun getCurrentFolder(path: String, tagFolders: List<TagFolder>): TagFolder? {
-        val folder = path.split("/").filter { f -> f.isNotEmpty() }.lastOrNull() ?: return null;
-        val currentFolder = tagFolders.singleOrNull { f -> f.tag == folder };
-        return currentFolder
+        return tagFolders.stream()
+            .map { f -> f.findFolder(path) }
+            .filter { f -> f != null }
+            .findFirst()
+            .orElse(null)
     }
 
     private fun getVisibleBookmarks(
@@ -125,7 +121,7 @@ class BrowseViewModel @Inject constructor(
     ): List<Bookmark> {
         var visibleBookmarks = bookmarks;
         if (currentFolder != null) {
-            visibleBookmarks = visibleBookmarks.filter { b -> !b.tags.any { tag -> currentFolder.children.contains(tag) } }
+            visibleBookmarks = visibleBookmarks.filter { b -> !b.tags.any { tag -> currentFolder.children.any { f -> f.tag == tag } } }
         }
         if (tags.size >= 1) {
             return visibleBookmarks.filter { b -> b.tags.containsAll(tags) };

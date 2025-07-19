@@ -33,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.hahn.maakmai.R
 import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
+import java.util.UUID
 
 @Composable
 fun BrowseScreen(
@@ -148,34 +149,46 @@ fun BrowseContentPreview() {
         Surface {
             BrowseContent(
                 bookmarks = listOf(
-                    Bookmark(title = "Blue shirt", description = "desc", url = null, tags = listOf("knitting")),
-                    Bookmark(title = "Red shirt", description = "desc", url = null, tags = listOf("knitting")),
-                    Bookmark(title = "Green shirt", description = "desc", url = null, tags = listOf("knitting")),
-
-                    Bookmark(title = "Blue mittens", description = "desc", url = null, tags = listOf("mittens", "knitting")),
-                    Bookmark(title = "Red mittens", description = "desc", url = null, tags = listOf("mittens", "knitting")),
-                    Bookmark(title = "Green mittens", description = "desc", url = null, tags = listOf("mittens", "knitting")),
-
-                    Bookmark(title = "Blue mittens", description = "desc", url = null, tags = listOf("mittens", "crochet")),
-                    Bookmark(title = "Red mittens", description = "desc", url = null, tags = listOf("mittens", "crochet")),
-                    Bookmark(title = "Green mittens", description = "desc", url = null, tags = listOf("mittens", "crochet")),
-
-                    Bookmark(title = "Blue scarf", description = "desc", url = null, tags = listOf("scarf", "crochet")),
-                    Bookmark(title = "Red scarf", description = "desc", url = null, tags = listOf("scarf", "crochet")),
-                    Bookmark(title = "Green scarf", description = "desc", url = null, tags = listOf("scarf", "crochet")),
-
-                    Bookmark(title = "Blue sweater", description = "desc", url = null, tags = listOf("sweater", "knitting")),
-                    Bookmark(title = "Red sweater", description = "desc", url = null, tags = listOf("sweater", "knitting")),
-                    Bookmark(title = "Green sweater", description = "desc", url = null, tags = listOf("sweater", "knitting")),
-
-                    Bookmark(title = "Applesauce", description = "desc", url = null, tags = listOf()),
+                    Bookmark(title = "Blue shirt", description = "desc", url = null, tags = listOf("knitting"), id = UUID.randomUUID()),
+                    Bookmark(title = "Red shirt", description = "desc", url = null, tags = listOf("knitting"), id = UUID.randomUUID()),
+                    Bookmark(title = "Green shirt", description = "desc", url = null, tags = listOf("knitting"), id = UUID.randomUUID()),
+                    Bookmark(title = "Blue mittens", description = "desc", url = null, tags = listOf("mittens", "knitting"), id = UUID.randomUUID()),
+                    Bookmark(title = "Red mittens", description = "desc", url = null, tags = listOf("mittens", "knitting"), id = UUID.randomUUID()),
+                    Bookmark(title = "Green mittens", description = "desc", url = null, tags = listOf("mittens", "knitting"), id = UUID.randomUUID()),
+                    Bookmark(title = "Blue mittens", description = "desc", url = null, tags = listOf("mittens", "crochet"), id = UUID.randomUUID()),
+                    Bookmark(title = "Red mittens", description = "desc", url = null, tags = listOf("mittens", "crochet"), id = UUID.randomUUID()),
+                    Bookmark(title = "Green mittens", description = "desc", url = null, tags = listOf("mittens", "crochet"), id = UUID.randomUUID()),
+                    Bookmark(title = "Blue scarf", description = "desc", url = null, tags = listOf("scarf", "crochet"), id = UUID.randomUUID()),
+                    Bookmark(title = "Red scarf", description = "desc", url = null, tags = listOf("scarf", "crochet"), id = UUID.randomUUID()),
+                    Bookmark(title = "Green scarf", description = "desc", url = null, tags = listOf("scarf", "crochet"), id = UUID.randomUUID()),
+                    Bookmark(title = "Blue sweater", description = "desc", url = null, tags = listOf("sweater", "knitting"), id = UUID.randomUUID()),
+                    Bookmark(title = "Red sweater", description = "desc", url = null, tags = listOf("sweater", "knitting"), id = UUID.randomUUID()),
+                    Bookmark(title = "Green sweater", description = "desc", url = null, tags = listOf("sweater", "knitting"), id = UUID.randomUUID()),
+                    Bookmark(title = "Applesauce", description = "desc", url = null, tags = listOf(), id = UUID.randomUUID()),
                 ),
                 tagFolders = listOf(
-                    FolderViewModel(TagFolder(tag = "mittens", children = listOf()), ""),
-                    FolderViewModel(TagFolder(tag = "scarf", children = listOf()), ""),
-                    FolderViewModel(TagFolder(tag = "sweater", children = listOf()), ""),
-                    FolderViewModel(TagFolder(tag = "crochet", children = listOf("mittens", "scarf"), rootFolder = true), ""),
-                    FolderViewModel(TagFolder(tag = "knitting", children = listOf("mittens", "sweater"), rootFolder = true), "")
+                    FolderViewModel(
+                        TagFolder(
+                            id = UUID.randomUUID(),
+                            tag = "crochet",
+                            children = listOf(
+                                TagFolder(id = UUID.randomUUID(), tag = "mittens", children = listOf()),
+                                TagFolder(id = UUID.randomUUID(), tag = "scarf", children = listOf())
+                            ),
+                            rootFolder = true
+                        ), "/crochet"
+                    ),
+                    FolderViewModel(
+                        TagFolder(
+                            id = UUID.randomUUID(),
+                            tag = "knitting",
+                            children = listOf(
+                                TagFolder(id = UUID.randomUUID(), tag = "mittens", children = listOf()),
+                                TagFolder(id = UUID.randomUUID(), tag = "sweater", children = listOf())
+                            ),
+                            rootFolder = true
+                        ), "/knitting"
+                    )
                 ),
                 path = "/knitting",
                 onFolderClick = {},
