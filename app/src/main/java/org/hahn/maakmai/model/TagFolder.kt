@@ -24,7 +24,7 @@ data class TagFolder(val id: UUID, val tag: String, val children: List<TagFolder
 
     fun findFolders(path: String): List<TagFolder> {
         if (path == "/") {
-            return listOf(this)
+            return emptyList()
         }
         return findFoldersInternal(path.split("/").filter { f -> f.isNotEmpty() })?.asReversed()?.filter { it.tag != "/" } ?: emptyList()
     }
