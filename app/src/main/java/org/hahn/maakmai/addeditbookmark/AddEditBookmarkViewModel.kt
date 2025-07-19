@@ -33,7 +33,9 @@ data class AddEditBookmarkUiState(
     val selectedFolderPath: List<TagFolder> = listOf(),
     val folders: List<TagFolder> = listOf(),
     val tagsPrioritised: List<TagPrioritised> = listOf(),
-    val selectedPriorityTags: List<TagPrioritised> = listOf()
+    val selectedPriorityTags: List<TagPrioritised> = listOf(),
+    val folderTags: List<String> = listOf(),
+    val selectedFolderTags: List<String> = listOf()
 )
 
 data class TagPrioritised(val tag: String, val count: Int)
@@ -80,6 +82,7 @@ class AddEditBookmarkViewModel @Inject constructor(
                         folders = folders,
                         selectedFolderPath = path?.let { TagFolder(tag = "/", children = folders, id = UUID.randomUUID()).findFolders(it) } ?: emptyList())
                 }
+                updateFolderTags()
             }
         }
     }
@@ -232,6 +235,26 @@ class AddEditBookmarkViewModel @Inject constructor(
                 it.copy(selectedFolderPath = currentPath + folder)
             }
         }
+
+        // Update folder tags based on the new selected folder path
+        updateFolderTags()
+    }
+
+    /**
+     * Updates the folder tags based on the current selected folder path
+     */
+    private fun updateFolderTags() {
+        val currentPath = _uiState.value.selectedFolderPath
+        val folderTags = if (currentPath.isNotEmpty()) {
+            // Get tag groups from the last selected folder
+            currentPath.last().tagGroups.sorted()
+        } else {
+            emptyList()
+        }
+
+        _uiState.update {
+            it.copy(folderTags = folderTags)
+        }
     }
 
     /**
@@ -241,6 +264,7 @@ class AddEditBookmarkViewModel @Inject constructor(
         _uiState.update {
             it.copy(selectedFolderPath = emptyList())
         }
+        updateFolderTags()
     }
 
     fun removeLastSelectedFolder() {
@@ -249,6 +273,7 @@ class AddEditBookmarkViewModel @Inject constructor(
             _uiState.update {
                 it.copy(selectedFolderPath = currentPath.dropLast(1))
             }
+            updateFolderTags()
         }
     }
 
@@ -257,13 +282,14 @@ class AddEditBookmarkViewModel @Inject constructor(
 
             val folderTags = uiState.value.selectedFolderPath.map { it.tag }
             val priorityTags = uiState.value.selectedPriorityTags.map {it.tag}
+            val selectedFolderTags = uiState.value.selectedFolderTags
             val bookmark =
                 Bookmark(
                     bookmarkId ?: UUID.randomUUID(),
                     uiState.value.title,
                     uiState.value.description,
                     uiState.value.url,
-                    (uiState.value.tags.filter { it.isNotBlank() } + folderTags + priorityTags).distinct()
+                    (uiState.value.tags.filter { it.isNotBlank() } + folderTags + priorityTags + selectedFolderTags).distinct()
                 )
             if (bookmarkId == null) {
                 bookmarkRepository.createBookmark(bookmark)
@@ -308,6 +334,25 @@ class AddEditBookmarkViewModel @Inject constructor(
             } else {
                 // If not selected, add it
                 it.copy(selectedPriorityTags = currentSelectedTags + tag)
+            }
+        }
+    }
+
+    /**
+     * Toggles a folder tag selection
+     * @param tag The folder tag to toggle
+     */
+    fun toggleFolderTag(tag: String) {
+        val currentSelectedTags = _uiState.value.selectedFolderTags
+        val isSelected = currentSelectedTags.contains(tag)
+
+        _uiState.update {
+            if (isSelected) {
+                // If already selected, remove it
+                it.copy(selectedFolderTags = currentSelectedTags.filter { t -> t != tag })
+            } else {
+                // If not selected, add it
+                it.copy(selectedFolderTags = currentSelectedTags + tag)
             }
         }
     }

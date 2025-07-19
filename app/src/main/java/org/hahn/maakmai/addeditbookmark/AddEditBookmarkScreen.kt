@@ -107,6 +107,9 @@ fun AddEditBookmarkScreen(
             priorityTags = uiState.tagsPrioritised,
             selectedPriorityTags = uiState.selectedPriorityTags,
             onPriorityTagToggled = viewModel::togglePriorityTag,
+            folderTags = uiState.folderTags,
+            selectedFolderTags = uiState.selectedFolderTags,
+            onFolderTagToggled = viewModel::toggleFolderTag,
             onDeleteClick = { showDeleteConfirmation = true },
             modifier = Modifier.padding(paddingValues)
         )
@@ -170,6 +173,9 @@ private fun AddEditBookmarkContent(
     priorityTags: List<TagPrioritised> = emptyList(),
     selectedPriorityTags: List<TagPrioritised> = emptyList(),
     onPriorityTagToggled: (TagPrioritised) -> Unit = {},
+    folderTags: List<String> = emptyList(),
+    selectedFolderTags: List<String> = emptyList(),
+    onFolderTagToggled: (String) -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -258,6 +264,17 @@ private fun AddEditBookmarkContent(
                 priorityTags = priorityTags,
                 selectedPriorityTags = selectedPriorityTags,
                 onPriorityTagToggled = onPriorityTagToggled,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        // Folder tags selector
+        if (folderTags.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            FolderTagSelector(
+                folderTags = folderTags,
+                selectedFolderTags = selectedFolderTags,
+                onFolderTagToggled = onFolderTagToggled,
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -392,6 +409,45 @@ private fun PriorityTagSelector(
                     onClick = { onPriorityTagToggled(tag) },
                     label = { 
                         Text("${tag.tag} (${tag.count})") 
+                    },
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FolderTagSelector(
+    folderTags: List<String>,
+    selectedFolderTags: List<String>,
+    onFolderTagToggled: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (folderTags.isEmpty()) return
+
+    Column(modifier = modifier) {
+        Text(
+            text = "Folder Tags:",
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Show folder tags
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(bottom = 8.dp)
+        ) {
+            folderTags.sorted().forEach { tag ->
+                val isSelected = selectedFolderTags.contains(tag)
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onFolderTagToggled(tag) },
+                    label = { 
+                        Text(tag) 
                     },
                     modifier = Modifier.padding(end = 8.dp)
                 )
