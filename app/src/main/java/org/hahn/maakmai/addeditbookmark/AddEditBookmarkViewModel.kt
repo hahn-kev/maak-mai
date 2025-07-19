@@ -29,8 +29,11 @@ class AddEditBookmarkViewModel @Inject constructor(
     private val bookmarkRepository: BookmarkRepository
 ) : ViewModel() {
     private val bookmarkId: UUID? = savedStateHandle[MaakMaiArgs.BOOKMARK_ID_ARG]
+    private val path: String? = savedStateHandle[MaakMaiArgs.PATH_ARG]
 
-    private val _uiState = MutableStateFlow(AddEditBookmarkUiState())
+    private val _uiState = MutableStateFlow(AddEditBookmarkUiState(
+        tags = path?.split("/")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
+    ))
     val uiState = _uiState.asStateFlow();
 
     init {

@@ -41,16 +41,15 @@ fun MaakMaiNavGraph(
                 navArgument(PATH_ARG) { type = NavType.StringType; defaultValue = "/" }
             )
         ) {
+            val currentPath = navController.currentBackStackEntry?.arguments?.getString(PATH_ARG) ?: "/"
             BrowseScreen(
                 onFolderClick = { folder -> navActions.navigateToBrowse(folder.path) },
                 onBookmarkClick = {},
-                onAddBookmark = navActions::navigateToAdd,
+                onAddBookmark = {navActions.navigateToAdd(currentPath)},
                 onAddFolder = {
-                    val currentPath = navController.currentBackStackEntry?.arguments?.getString(PATH_ARG) ?: "/"
                     navActions.navigateToAddFolder(currentPath, null)
                 },
                 onEditFolder = { folderId ->
-                    val currentPath = navController.currentBackStackEntry?.arguments?.getString(PATH_ARG) ?: "/"
                     navActions.navigateToEditFolder(folderId, currentPath, null)
                 },
                 onBack = { navController.popBackStack() }
@@ -59,11 +58,12 @@ fun MaakMaiNavGraph(
         composable(
             MaakMaiDestinations.ADD_EDIT_BOOKMARK_ROUTE, arguments = listOf(
                 navArgument(TITLE_ARG) { type = NavType.StringType; defaultValue = "Edit Bookmark" },
-                navArgument(BOOKMARK_ID_ARG) { type = NavType.StringType; nullable = true }
+                navArgument(BOOKMARK_ID_ARG) { type = NavType.StringType; nullable = true },
+                navArgument(PATH_ARG) { type = NavType.StringType; nullable = true },
             )) { entry ->
             AddEditBookmarkScreen(
                 topBarTitle = entry.arguments?.getString(TITLE_ARG)!!,
-                onBookmarkUpdate = navActions::navigateToBrowse,
+                onBookmarkUpdate = { navController.popBackStack() },
                 onBack = { navController.popBackStack() }
             )
         }

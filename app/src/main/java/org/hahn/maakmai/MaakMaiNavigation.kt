@@ -28,7 +28,7 @@ object MaakMaiArgs {
 
 object MaakMaiDestinations {
     const val BROWSE_ROUTE = "$BROWSE_SCREEN?$PATH_ARG={$PATH_ARG}"
-    const val ADD_EDIT_BOOKMARK_ROUTE = "$ADD_EDIT_BOOKMARK_SCREEN/{$TITLE_ARG}?$BOOKMARK_ID_ARG={$BOOKMARK_ID_ARG}"
+    const val ADD_EDIT_BOOKMARK_ROUTE = "$ADD_EDIT_BOOKMARK_SCREEN/{$TITLE_ARG}?$BOOKMARK_ID_ARG={$BOOKMARK_ID_ARG}&$PATH_ARG={$PATH_ARG}"
     const val ADD_EDIT_FOLDER_ROUTE = "$ADD_EDIT_FOLDER_SCREEN/{$TITLE_ARG}?$FOLDER_ID_ARG={$FOLDER_ID_ARG}&$PARENT_PATH_ARG={$PARENT_PATH_ARG}"
 }
 
@@ -46,8 +46,8 @@ class MaakMaiNavigationActions(private val navController: NavController) {
         navController.popBackStack(browseRoute(path), true)
     }
 
-    fun navigateToAdd() {
-        navController.navigate("$ADD_EDIT_BOOKMARK_SCREEN/Add Bookmark")
+    fun navigateToAdd(atPath: String? = null) {
+        navController.navigate("$ADD_EDIT_BOOKMARK_SCREEN/Add Bookmark${atPath.let { "?$PATH_ARG=$atPath" }}")
     }
 
     fun navigateToEdit(bookmarkId: UUID) {
