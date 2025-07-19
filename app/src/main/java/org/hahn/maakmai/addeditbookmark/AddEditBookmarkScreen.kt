@@ -35,21 +35,38 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TopAppBar
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.hahn.maakmai.R
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditBookmarkScreen(
     topBarTitle: String,
     modifier: Modifier = Modifier,
     onBookmarkUpdate: () -> Unit = {},
+    onBack: () -> Unit = {},
     viewModel: AddEditBookmarkViewModel = hiltViewModel(),
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            TopAppBar(
+                title = { Text(text = topBarTitle) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.Close, "Cancel")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
         floatingActionButton = {
             SmallFloatingActionButton(onClick = viewModel::saveBookmark) {
                 Icon(Icons.Filled.Done, "Save Bookmark")

@@ -51,7 +51,8 @@ fun MaakMaiNavGraph(
             )) { entry ->
             AddEditBookmarkScreen(
                 topBarTitle = entry.arguments?.getString(TITLE_ARG)!!,
-                onBookmarkUpdate = navActions::navigateToBrowse
+                onBookmarkUpdate = navActions::navigateToBrowse,
+                onBack = { navController.popBackStack() }
             )
         }
     }
