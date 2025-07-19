@@ -21,6 +21,11 @@ import java.nio.charset.StandardCharsets
 import java.util.UUID
 import javax.inject.Inject
 
+data class TagGroup(
+    val prefix: String,
+    val tags: List<String>
+)
+
 data class AddEditBookmarkUiState(
     val title: String = "",
     val description: String = "",
@@ -34,8 +39,8 @@ data class AddEditBookmarkUiState(
     val folders: List<TagFolder> = listOf(),
     val tagsPrioritised: List<TagPrioritised> = listOf(),
     val selectedPriorityTags: List<TagPrioritised> = listOf(),
-    val folderTags: List<String> = listOf(),
-    val selectedFolderTags: List<String> = listOf()
+    val groupedFolderTags: List<TagGroup> = listOf(),
+    val selectedFolderTags: List<String> = listOf(),
 )
 
 data class TagPrioritised(val tag: String, val count: Int)
@@ -74,8 +79,6 @@ class AddEditBookmarkViewModel @Inject constructor(
             _uiState.update {
                 it.copy(tagsPrioritised = tags)
             }
-        }
-        viewModelScope.launch {
             folderRepository.getFoldersStream().collectLatest { folders ->
                 _uiState.update {
                     it.copy(
@@ -245,6 +248,7 @@ class AddEditBookmarkViewModel @Inject constructor(
      */
     private fun updateFolderTags() {
         val currentPath = _uiState.value.selectedFolderPath
+        val allTags = _uiState.value.tagsPrioritised.map { it.tag }
         val folderTags = if (currentPath.isNotEmpty()) {
             // Get tag groups from the last selected folder
             currentPath.last().tagGroups.sorted()
@@ -252,8 +256,33 @@ class AddEditBookmarkViewModel @Inject constructor(
             emptyList()
         }
 
+        // Group tags by prefix
+        val groupedTags = mutableListOf<TagGroup>()
+
+        // Process each tag
+        folderTags.forEach { tag ->
+            // Check if this tag should be a prefix (section header)
+            val matchingTags = allTags.filter { it != tag && it.startsWith(tag) }
+
+            if (matchingTags.isEmpty()) {
+                return@forEach
+            }
+            // This tag is a prefix for other tags
+            val prefixGroup = TagGroup(
+                prefix = tag,
+                tags = matchingTags
+            )
+
+            // Only add if not already added (avoid duplicates)
+            if (!groupedTags.any { it.prefix == tag }) {
+                groupedTags.add(prefixGroup)
+            }
+        }
+
         _uiState.update {
-            it.copy(folderTags = folderTags)
+            it.copy(
+                groupedFolderTags = groupedTags
+            )
         }
     }
 

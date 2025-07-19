@@ -52,6 +52,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.hahn.maakmai.addeditbookmark.TagPrioritised
+import org.hahn.maakmai.addeditbookmark.TagGroup
 import org.hahn.maakmai.model.TagFolder
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -107,9 +108,9 @@ fun AddEditBookmarkScreen(
             priorityTags = uiState.tagsPrioritised,
             selectedPriorityTags = uiState.selectedPriorityTags,
             onPriorityTagToggled = viewModel::togglePriorityTag,
-            folderTags = uiState.folderTags,
             selectedFolderTags = uiState.selectedFolderTags,
             onFolderTagToggled = viewModel::toggleFolderTag,
+            groupedFolderTags = uiState.groupedFolderTags,
             onDeleteClick = { showDeleteConfirmation = true },
             modifier = Modifier.padding(paddingValues)
         )
@@ -173,9 +174,9 @@ private fun AddEditBookmarkContent(
     priorityTags: List<TagPrioritised> = emptyList(),
     selectedPriorityTags: List<TagPrioritised> = emptyList(),
     onPriorityTagToggled: (TagPrioritised) -> Unit = {},
-    folderTags: List<String> = emptyList(),
     selectedFolderTags: List<String> = emptyList(),
     onFolderTagToggled: (String) -> Unit = {},
+    groupedFolderTags: List<TagGroup> = emptyList(),
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -269,12 +270,12 @@ private fun AddEditBookmarkContent(
         }
 
         // Folder tags selector
-        if (folderTags.isNotEmpty()) {
+        if (groupedFolderTags.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
             FolderTagSelector(
-                folderTags = folderTags,
                 selectedFolderTags = selectedFolderTags,
                 onFolderTagToggled = onFolderTagToggled,
+                groupedFolderTags = groupedFolderTags,
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -419,13 +420,11 @@ private fun PriorityTagSelector(
 
 @Composable
 private fun FolderTagSelector(
-    folderTags: List<String>,
     selectedFolderTags: List<String>,
     onFolderTagToggled: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    groupedFolderTags: List<TagGroup> = emptyList()
 ) {
-    if (folderTags.isEmpty()) return
-
     Column(modifier = modifier) {
         Text(
             text = "Folder Tags:",
@@ -434,25 +433,36 @@ private fun FolderTagSelector(
         )
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Show folder tags
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(bottom = 8.dp)
-        ) {
-            folderTags.sorted().forEach { tag ->
-                val isSelected = selectedFolderTags.contains(tag)
-                FilterChip(
-                    selected = isSelected,
-                    onClick = { onFolderTagToggled(tag) },
-                    label = { 
-                        Text(tag) 
-                    },
-                    modifier = Modifier.padding(end = 8.dp)
-                )
+        groupedFolderTags.forEach { group ->
+            // Section header
+            Text(
+                text = group.prefix,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+            )
+
+            // Tags in this section
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(bottom = 8.dp)
+            ) {
+                group.tags.sorted().forEach { tag ->
+                    val isSelected = selectedFolderTags.contains(tag)
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { onFolderTagToggled(tag) },
+                        label = {
+                            Text(tag)
+                        },
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }
             }
         }
+
     }
 }
 
