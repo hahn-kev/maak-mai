@@ -36,6 +36,10 @@ class MaakMaiNavigationActions(private val navController: NavController) {
         navController.navigate("$BROWSE_SCREEN?$PATH_ARG=$path");
     }
 
+    fun navigateToBrowseParent(path: String) {
+        navigateToBrowse(path.substringBeforeLast('/'))
+    }
+
     fun navigateToAdd() {
         navController.navigate("$ADD_EDIT_BOOKMARK_SCREEN/Add Bookmark")
     }

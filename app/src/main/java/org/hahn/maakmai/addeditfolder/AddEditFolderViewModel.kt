@@ -18,8 +18,11 @@ import javax.inject.Inject
 data class AddEditFolderUiState(
     val tag: String = "",
     val parentPath: String = "/",
+    val isNew: Boolean = false,
     val isLoading: Boolean = false,
-    val isFolderSaved: Boolean = false
+    val isFolderSaved: Boolean = false,
+    val isFolderDeleted: Boolean = false,
+    val childFolders: List<TagFolder> = emptyList()
 )
 
 @HiltViewModel
@@ -33,7 +36,7 @@ class AddEditFolderViewModel @Inject constructor(
     private val parentPath: String = savedStateHandle[MaakMaiArgs.PARENT_PATH_ARG] ?: "/"
     private var parentId: UUID? = null
 
-    private val _uiState = MutableStateFlow(AddEditFolderUiState(parentPath = parentPath))
+    private val _uiState = MutableStateFlow(AddEditFolderUiState(parentPath = parentPath, isNew = folderId == null))
     val uiState = _uiState.asStateFlow()
 
     init {
@@ -67,6 +70,9 @@ class AddEditFolderViewModel @Inject constructor(
                 // from the parent path if it's not the root folder
                 parentId = folder.parent
 
+                // Load child folders
+                loadChildFolders(folderId)
+
                 _uiState.update {
                     it.copy(
                         tag = folder.tag,
@@ -80,6 +86,36 @@ class AddEditFolderViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    private fun loadChildFolders(folderId: UUID) {
+        viewModelScope.launch {
+            val allFolders = folderRepository.getRootFolders()
+            val rootFolder = TagFolder(tag = "root", children = allFolders, id = UUID.randomUUID())
+
+            // Find all folders in the hierarchy
+            val allTagFolders = mutableListOf<TagFolder>()
+            findAllTagFolders(rootFolder, allTagFolders)
+
+            // Find the current folder
+            val currentFolder = allTagFolders.find { it.id == folderId }
+
+            // Update UI state with child folders
+            if (currentFolder != null) {
+                _uiState.update {
+                    it.copy(
+                        childFolders = currentFolder.children
+                    )
+                }
+            }
+        }
+    }
+
+    private fun findAllTagFolders(folder: TagFolder, result: MutableList<TagFolder>) {
+        result.add(folder)
+        for (child in folder.children) {
+            findAllTagFolders(child, result)
         }
     }
 
@@ -112,6 +148,24 @@ class AddEditFolderViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isFolderSaved = true
+                    )
+                }
+            }
+        }
+    }
+
+    fun deleteFolder() {
+        if (folderId == null) {
+            return
+        }
+
+        viewModelScope.launch {
+            val result = folderRepository.deleteFolder(folderId)
+
+            if (result.isSuccess) {
+                _uiState.update {
+                    it.copy(
+                        isFolderDeleted = true
                     )
                 }
             }

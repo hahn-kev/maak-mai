@@ -78,7 +78,8 @@ fun MaakMaiNavGraph(
             )) { entry ->
             AddEditFolderScreen(
                 topBarTitle = entry.arguments?.getString(TITLE_ARG)!!,
-                onFolderUpdate = navActions::navigateToBrowse,
+                onFolderUpdate = { navController.popBackStack() },
+                onFolderDelete = { navActions.navigateToBrowseParent(entry.arguments?.getString(PARENT_PATH_ARG)!!) },
                 onBack = { navController.popBackStack() }
             )
         }

@@ -73,23 +73,29 @@ class FolderRepositoryRoom @Inject constructor(
 
     override suspend fun deleteFolder(id: UUID): Result<Unit> {
         return try {
-            // Check if folder has children
             val allFolders = folderDao.getAllFolders()
-            val hasChildren = allFolders.any { it.parent == id }
 
-            if (hasChildren) {
-                Result.failure(IllegalStateException("Cannot delete folder with children"))
-            } else {
-                val result = folderDao.deleteFolderById(id)
-                if (result > 0) {
-                    Result.success(Unit)
-                } else {
-                    Result.failure(NoSuchElementException("Folder with id $id not found"))
-                }
-            }
+            // Recursively delete the folder and all its children
+            deleteRecursively(id, allFolders)
+
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    // Helper function to recursively delete a folder and all its children
+    private suspend fun deleteRecursively(folderId: UUID, allFolders: List<Folder>) {
+        // Find all direct children of this folder
+        val childFolders = allFolders.filter { it.parent == folderId }
+
+        // Recursively delete each child folder
+        for (childFolder in childFolders) {
+            deleteRecursively(childFolder.id, allFolders)
+        }
+
+        // Delete the folder itself
+        folderDao.deleteFolderById(folderId)
     }
 
     // Helper function to convert folders to TagFolders
