@@ -134,7 +134,7 @@ class AddEditFolderViewModel @Inject constructor(
 
             val folder = Folder(
                 id = folderId ?: UUID.randomUUID(),
-                tag = uiState.value.tag,
+                tag = uiState.value.tag.trim(),
                 parent = parentId
             )
 
