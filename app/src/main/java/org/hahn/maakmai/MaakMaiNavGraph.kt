@@ -11,7 +11,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.CoroutineScope
+import org.hahn.maakmai.MaakMaiArgs.BOOKMARK_ID_ARG
 import org.hahn.maakmai.MaakMaiArgs.PATH_ARG
+import org.hahn.maakmai.MaakMaiArgs.TITLE_ARG
+import org.hahn.maakmai.addeditbookmark.AddEditBookmarkScreen
 import org.hahn.maakmai.browse.BrowseScreen
 
 @Composable
@@ -37,7 +40,18 @@ fun MaakMaiNavGraph(
         ) {
             BrowseScreen(
                 onFolderClick = { folder -> navActions.navigateToBrowse(folder.path) },
-                onBookmarkClick = {}
+                onBookmarkClick = {},
+                onAddBookmark = navActions::navigateToAdd
+            )
+        }
+        composable(
+            MaakMaiDestinations.ADD_EDIT_BOOKMARK_ROUTE, arguments = listOf(
+                navArgument(TITLE_ARG) { type = NavType.StringType; defaultValue = "Edit Bookmark" },
+                navArgument(BOOKMARK_ID_ARG) { type = NavType.StringType; nullable = true }
+            )) { entry ->
+            AddEditBookmarkScreen(
+                topBarTitle = entry.arguments?.getString(TITLE_ARG)!!,
+                onBookmarkUpdate = navActions::navigateToBrowse
             )
         }
     }
