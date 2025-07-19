@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.CreateNewFolder
@@ -124,13 +123,11 @@ fun BrowseScreen(
         BrowseContent(
             bookmarks = uiState.visibleBookmarks,
             tagFolders = uiState.visibleFolders,
-            showAll = uiState.showAll,
-            path = uiState.path,
-            onSetShowAll = viewModel::setShowAll,
-            onBackClick = viewModel::onBack,
+            modifier = Modifier.padding(paddingValues),
             onFolderClick = onFolderClick,
             onBookmarkClick = onBookmarkClick,
-            modifier = Modifier.padding(paddingValues),
+            onAddBookmark = onAddBookmark,
+            onAddFolder = onAddFolder
         )
     }
 
@@ -140,16 +137,14 @@ fun BrowseScreen(
 fun BrowseContent(
     bookmarks: List<Bookmark>,
     tagFolders: List<FolderViewModel>,
-    path: String,
-    showAll: Boolean,
     modifier: Modifier = Modifier,
     onFolderClick: (FolderViewModel) -> Unit = {},
     onBookmarkClick: (Bookmark) -> Unit = {},
-    onSetShowAll: (Boolean) -> Unit = {},
-    onBackClick: () -> Unit = {},
+    onAddBookmark: () -> Unit = {},
+    onAddFolder: () -> Unit = {},
 ) {
     if (tagFolders.isEmpty() && bookmarks.isEmpty()) {
-        EmptyStateView(modifier = modifier)
+        EmptyStateView(modifier = modifier, onAddBookmark = onAddBookmark, onAddFolder = onAddFolder)
     } else {
         Column(
             modifier = modifier
@@ -175,7 +170,7 @@ fun BrowseContent(
 }
 
 @Composable
-fun EmptyStateView(modifier: Modifier = Modifier) {
+fun EmptyStateView(modifier: Modifier = Modifier, onAddBookmark: () -> Unit = {}, onAddFolder: () -> Unit = {}) {
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -205,7 +200,8 @@ fun EmptyStateView(modifier: Modifier = Modifier) {
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.clickable(onClick = onAddBookmark)
                 ) {
                     Icon(
                         imageVector = Icons.Default.BookmarkAdd,
@@ -220,7 +216,8 @@ fun EmptyStateView(modifier: Modifier = Modifier) {
                     )
                 }
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.clickable(onClick = onAddFolder)
                 ) {
                     Icon(
                         imageVector = Icons.Default.CreateNewFolder,
@@ -324,10 +321,8 @@ fun BrowseContentPreview() {
                         ), "/knitting"
                     )
                 ),
-                path = "/knitting",
                 onFolderClick = {},
                 onBookmarkClick = {},
-                showAll = true
             )
         }
     }
@@ -341,10 +336,8 @@ fun EmptyStatePreview() {
             BrowseContent(
                 bookmarks = emptyList(),
                 tagFolders = emptyList(),
-                path = "/",
                 onFolderClick = {},
                 onBookmarkClick = {},
-                showAll = true
             )
         }
     }
