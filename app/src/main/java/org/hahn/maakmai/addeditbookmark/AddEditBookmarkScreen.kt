@@ -1,5 +1,6 @@
 package org.hahn.maakmai.addeditbookmark
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -198,7 +199,7 @@ private fun AddEditBookmarkContent(
             onValueChange = { onUrlChanged(it.ifEmpty { null }) },
             label = { Text(text = "URL") },
             textStyle = MaterialTheme.typography.bodyLarge,
-            maxLines = 1,
+            singleLine = true,
             colors = textFieldColors,
             keyboardOptions = KeyboardOptions(
                 imeAction = ImeAction.Next,
