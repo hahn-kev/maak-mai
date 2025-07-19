@@ -269,7 +269,7 @@ class AddEditBookmarkViewModel @Inject constructor(
             // This tag is a prefix for other tags
             val prefixGroup = TagGroup(
                 prefix = tag,
-                tags = matchingTags.map { TagUiState(it, false) }
+                tags = matchingTags.map { TagUiState(it, false, label = it.substring(tag.length + 1)) }
             )
 
             // Only add if not already added (avoid duplicates)
