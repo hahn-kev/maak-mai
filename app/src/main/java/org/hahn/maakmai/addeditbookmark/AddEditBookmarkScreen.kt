@@ -2,6 +2,8 @@ package org.hahn.maakmai.addeditbookmark
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -254,6 +256,16 @@ private fun AddEditBookmarkContent(
             )
         }
 
+        // Folder tags selector
+        if (groupedFolderTags.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            FolderTagSelector(
+                onFolderTagToggled = onFolderTagToggled,
+                groupedFolderTags = groupedFolderTags,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
         // Priority tags selector
         if (priorityTags.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
@@ -262,16 +274,6 @@ private fun AddEditBookmarkContent(
                 onTagToggled = onPriorityTagToggled,
                 modifier = Modifier.fillMaxWidth(),
                 sectionTitle = "Priority Tags:"
-            )
-        }
-
-        // Folder tags selector
-        if (groupedFolderTags.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(16.dp))
-            FolderTagSelector(
-                onFolderTagToggled = onFolderTagToggled,
-                groupedFolderTags = groupedFolderTags,
-                modifier = Modifier.fillMaxWidth()
             )
         }
 
@@ -376,6 +378,7 @@ private fun FolderBadgeSelector(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TagSection(
     tags: List<TagUiState>,
@@ -393,11 +396,10 @@ private fun TagSection(
         Spacer(modifier = Modifier.height(8.dp))
 
         // Show priority tags
-        Row(
+        FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(bottom = 8.dp)
+                .padding(bottom = 4.dp)
         ) {
             tags.forEach { tag ->
                 FilterChip(
@@ -406,7 +408,7 @@ private fun TagSection(
                     label = { 
                         Text(tag.label ?: tag.tag)
                     },
-                    modifier = Modifier.padding(end = 8.dp)
+                    modifier = Modifier.padding(end = 8.dp, bottom = 2.dp)
                 )
             }
         }
