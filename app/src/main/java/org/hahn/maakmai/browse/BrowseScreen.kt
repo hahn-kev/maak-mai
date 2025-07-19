@@ -33,6 +33,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -123,6 +124,7 @@ fun BrowseScreen(
         BrowseContent(
             bookmarks = uiState.visibleBookmarks,
             tagFolders = uiState.visibleFolders,
+            isLoading = uiState.loading,
             modifier = Modifier.padding(paddingValues),
             onFolderClick = onFolderClick,
             onBookmarkClick = onBookmarkClick,
@@ -137,13 +139,21 @@ fun BrowseScreen(
 fun BrowseContent(
     bookmarks: List<Bookmark>,
     tagFolders: List<FolderViewModel>,
+    isLoading: Boolean = false,
     modifier: Modifier = Modifier,
     onFolderClick: (FolderViewModel) -> Unit = {},
     onBookmarkClick: (Bookmark) -> Unit = {},
     onAddBookmark: () -> Unit = {},
     onAddFolder: () -> Unit = {},
 ) {
-    if (tagFolders.isEmpty() && bookmarks.isEmpty()) {
+    if (isLoading) {
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+    } else if (tagFolders.isEmpty() && bookmarks.isEmpty()) {
         EmptyStateView(modifier = modifier, onAddBookmark = onAddBookmark, onAddFolder = onAddFolder)
     } else {
         Column(
