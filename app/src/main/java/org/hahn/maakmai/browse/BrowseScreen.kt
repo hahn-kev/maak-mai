@@ -288,8 +288,17 @@ fun BookmarkCard(bookmark: Bookmark, onOpen: (Bookmark) -> Unit = {}, onEdit: (B
             contentScale = ContentScale.Crop,
             modifier = Modifier.size(180.dp)
         )
-        Text(text = bookmark.title, style = MaterialTheme.typography.titleMedium)
-        Text(text = bookmark.description, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 4.dp))
+        Text(
+            text = bookmark.title,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 3
+        )
+        Text(
+            text = bookmark.description,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 4.dp),
+            maxLines = 3
+        )
     }
 }
 
@@ -307,7 +316,11 @@ fun FolderCard(folder: TagFolder, onOpen: (TagFolder) -> Unit = {}) {
             contentScale = ContentScale.Crop,
             modifier = Modifier.size(120.dp)
         )
-        Text(text = folder.tag, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 4.dp))
+        Text(
+            text = folder.tag,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 4.dp)
+        )
     }
 }
 
@@ -359,6 +372,36 @@ fun BrowseContentPreview() {
                         ), "/knitting"
                     )
                 ),
+                onFolderClick = {},
+                onBookmarkClick = {},
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun LongBookmarkText() {
+    MaterialTheme {
+        Surface {
+            BrowseContent(
+                bookmarks = listOf(
+                    Bookmark(
+                        title = "this is a very long title, it has many lines and should be cut off at some point",
+                        description = "desc",
+                        url = null,
+                        tags = listOf(),
+                        id = UUID.randomUUID()
+                    ),
+                    Bookmark(
+                        title = "short title",
+                        description = "this is a very long description, it has many lines and should be cut off at some point",
+                        url = null,
+                        tags = listOf(),
+                        id = UUID.randomUUID()
+                    )
+                ),
+                tagFolders = emptyList(),
                 onFolderClick = {},
                 onBookmarkClick = {},
             )
