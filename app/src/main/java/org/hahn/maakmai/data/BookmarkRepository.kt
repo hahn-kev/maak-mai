@@ -16,4 +16,10 @@ interface BookmarkRepository {
     suspend fun getBookmarksByTags(tags: List<String>): List<Bookmark>
 
     fun getBookmarksStream(): Flow<List<Bookmark>>
+
+    /**
+     * Gets all distinct tags from bookmarks with the number of times each was used.
+     * @return A map where the key is the tag and the value is the count of bookmarks using that tag.
+     */
+    suspend fun getTagsWithCount(): Map<String, Int>
 }

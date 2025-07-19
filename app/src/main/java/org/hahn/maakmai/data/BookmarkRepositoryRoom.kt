@@ -11,7 +11,7 @@ import javax.inject.Singleton
 class BookmarkRepositoryRoom @Inject constructor(
     private val bookmarkDao: BookmarkDao
 ) : BookmarkRepository {
-    
+
     override suspend fun createBookmark(bookmark: Bookmark) {
         bookmarkDao.insertBookmark(bookmark)
     }
@@ -43,5 +43,19 @@ class BookmarkRepositoryRoom @Inject constructor(
 
     override fun getBookmarksStream(): Flow<List<Bookmark>> {
         return bookmarkDao.getBookmarksStream()
+    }
+
+    override suspend fun getTagsWithCount(): Map<String, Int> {
+        val allBookmarks = bookmarkDao.getAllBookmarks()
+        val tagCounts = mutableMapOf<String, Int>()
+
+        // Count occurrences of each tag
+        allBookmarks.forEach { bookmark ->
+            bookmark.tags.forEach { tag ->
+                tagCounts[tag] = tagCounts.getOrDefault(tag, 0) + 1
+            }
+        }
+
+        return tagCounts
     }
 }

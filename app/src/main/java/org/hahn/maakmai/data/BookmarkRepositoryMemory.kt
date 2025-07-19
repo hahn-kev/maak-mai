@@ -65,5 +65,16 @@ class BookmarkRepositoryMemory @Inject constructor() : BookmarkRepository {
         }
     }
 
+    override suspend fun getTagsWithCount(): Map<String, Int> {
+        val tagCounts = mutableMapOf<String, Int>()
 
+        // Count occurrences of each tag
+        bookmarks.values.forEach { bookmark ->
+            bookmark.tags.forEach { tag ->
+                tagCounts[tag] = tagCounts.getOrDefault(tag, 0) + 1
+            }
+        }
+
+        return tagCounts
+    }
 }
