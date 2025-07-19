@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import org.hahn.maakmai.MaakMaiArgs.PATH_ARG
 import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
 import org.hahn.maakmai.util.WhileUiSubscribed
@@ -16,10 +17,15 @@ import javax.inject.Inject
 
 data class BrowseUiState(
     val path: String,
-    val visibleFolders: List<TagFolder>,
+    val visibleFolders: List<FolderViewModel>,
     val visibleBookmarks: List<Bookmark>,
     val loading: Boolean = false,
     val showAll: Boolean = false
+)
+
+data class FolderViewModel(
+    val folder: TagFolder,
+    val path: String
 )
 
 const val CURRENT_PATH_SAVED_STATE_KEY = "CURRENT_PATH_SAVED_STATE_KEY"
@@ -29,22 +35,22 @@ const val SHOW_ALL_SAVED_STATE_KEY = "SHOW_ALL_SAVED_STATE_KEY"
 class BrowseViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
-    private val _savedPath = savedStateHandle.getStateFlow(CURRENT_PATH_SAVED_STATE_KEY, "/")
+    private val currentPath: String = savedStateHandle[PATH_ARG]!!
     private val _showAll = savedStateHandle.getStateFlow(SHOW_ALL_SAVED_STATE_KEY, false)
     private val _bookmarks = MutableStateFlow(listOf<Bookmark>())
     private val _tagFolders = MutableStateFlow(listOf<TagFolder>())
 
-    private val _tags = _savedPath.map { path -> path.split("/").filter { f -> f.isNotEmpty() }.toHashSet() }
-    private val _currentFolder = _savedPath.combine(_tagFolders) { path, folders ->
-        getCurrentFolder(path, folders)
+    private val _tags = currentPath.split("/").filter { f -> f.isNotEmpty() }.toHashSet()
+    private val _currentFolder = _tagFolders.map { folders ->
+        getCurrentFolder(currentPath, folders)
     }
     private val _visibleFolders = _currentFolder.combine(_tagFolders) { currentFolder, folders ->
         getVisibleFolders(currentFolder, folders)
     }
-    private val _visibleBookmarks = combine(_bookmarks, _currentFolder, _showAll, _tags, _visibleFolders)
-    { bookmarks, currentFolder, showAll, tags, visibleFolders ->
+    private val _visibleBookmarks = combine(_bookmarks, _currentFolder, _showAll, _visibleFolders)
+    { bookmarks, currentFolder, showAll, visibleFolders ->
         getVisibleBookmarks(
-            tags, if (!showAll) {
+            _tags, if (!showAll) {
                 currentFolder ?: TagFolder(tag = "root", children = visibleFolders.map { f -> f.tag })
             } else {
                 null
@@ -53,11 +59,11 @@ class BrowseViewModel @Inject constructor(
     }
     private val _isLoading = MutableStateFlow(false)
 
-    val uiState: StateFlow<BrowseUiState> = combine(_savedPath, _isLoading, _visibleFolders, _visibleBookmarks, _showAll)
-    { path, loading, visibleFolders, visibleBookmarks, showAll ->
+    val uiState: StateFlow<BrowseUiState> = combine(_isLoading, _visibleFolders, _visibleBookmarks, _showAll)
+    { loading, visibleFolders, visibleBookmarks, showAll ->
         BrowseUiState(
-            path = path,
-            visibleFolders = visibleFolders,
+            path = currentPath,
+            visibleFolders = visibleFolders.map { folder -> FolderViewModel(folder, openFolderPath(currentPath, folder)) },
             visibleBookmarks = visibleBookmarks,
             loading = loading,
             showAll = showAll
@@ -68,18 +74,18 @@ class BrowseViewModel @Inject constructor(
         initialValue = BrowseUiState("/", listOf(), listOf(), true, false)
     )
 
-    fun openFolder(tagFolder: TagFolder) {
-        var path = _savedPath.value
+    private fun openFolderPath(currentPath: String, tagFolder: TagFolder): String {
+        var path = currentPath;
         if (path == "/") {
             path += tagFolder.tag
         } else {
             path = "$path/${tagFolder.tag}"
         }
-        setPath(path)
+        return path
     }
 
     fun onBack() {
-        var path = _savedPath.value
+        var path = currentPath
         val lastIndex = path.lastIndexOf("/");
         if (lastIndex == -1) return
         path = path.substring(0, lastIndex)

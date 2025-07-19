@@ -4,7 +4,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -12,7 +11,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -23,9 +21,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -41,6 +37,7 @@ import org.hahn.maakmai.model.TagFolder
 @Composable
 fun BrowseScreen(
     onBookmarkClick: (Bookmark) -> Unit,
+    onFolderClick: (FolderViewModel) -> Unit,
     viewModel: BrowseViewModel = hiltViewModel(),
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
 ) {
@@ -53,10 +50,10 @@ fun BrowseScreen(
             tagFolders = uiState.visibleFolders,
             showAll = uiState.showAll,
             path = uiState.path,
-            onFolderClick = viewModel::openFolder,
             onSetShowAll = viewModel::setShowAll,
             onBackClick = viewModel::onBack,
-            onBookmarkClick = {},
+            onFolderClick = onFolderClick,
+            onBookmarkClick = onBookmarkClick,
             modifier = Modifier.padding(paddingValues),
         )
     }
@@ -66,11 +63,11 @@ fun BrowseScreen(
 @Composable
 fun BrowseContent(
     bookmarks: List<Bookmark>,
-    tagFolders: List<TagFolder>,
+    tagFolders: List<FolderViewModel>,
     path: String,
     showAll: Boolean,
     modifier: Modifier = Modifier,
-    onFolderClick: (TagFolder) -> Unit = {},
+    onFolderClick: (FolderViewModel) -> Unit = {},
     onBookmarkClick: (Bookmark) -> Unit = {},
     onSetShowAll: (Boolean) -> Unit = {},
     onBackClick: () -> Unit = {},
@@ -91,7 +88,7 @@ fun BrowseContent(
                 }
             }
             items(tagFolders) { tagFolder ->
-                FolderCard(tagFolder, onFolderClick)
+                FolderCard(tagFolder.folder, { onFolderClick(tagFolder) })
             }
         }
         LazyVerticalGrid(
@@ -174,11 +171,11 @@ fun BrowseContentPreview() {
                     Bookmark(title = "Applesauce", description = "desc", url = null, tags = listOf()),
                 ),
                 tagFolders = listOf(
-                    TagFolder(tag = "mittens", children = listOf()),
-                    TagFolder(tag = "scarf", children = listOf()),
-                    TagFolder(tag = "sweater", children = listOf()),
-                    TagFolder(tag = "crochet", children = listOf("mittens", "scarf"), rootFolder = true),
-                    TagFolder(tag = "knitting", children = listOf("mittens", "sweater"), rootFolder = true),
+                    FolderViewModel(TagFolder(tag = "mittens", children = listOf()), ""),
+                    FolderViewModel(TagFolder(tag = "scarf", children = listOf()), ""),
+                    FolderViewModel(TagFolder(tag = "sweater", children = listOf()), ""),
+                    FolderViewModel(TagFolder(tag = "crochet", children = listOf("mittens", "scarf"), rootFolder = true), ""),
+                    FolderViewModel(TagFolder(tag = "knitting", children = listOf("mittens", "sweater"), rootFolder = true), "")
                 ),
                 path = "/knitting",
                 onFolderClick = {},

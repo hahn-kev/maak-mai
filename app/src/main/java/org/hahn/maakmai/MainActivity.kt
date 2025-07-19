@@ -39,11 +39,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MaakMaiTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Box(modifier = Modifier.padding(innerPadding)){
-                        BrowseScreen()
-                    }
-                }
+                MaakMaiNavGraph()
             }
         }
     }

@@ -20,4 +20,5 @@ class MaakMaiNavigationActions(private val navController: NavController) {
     fun navigateToBrowse(path: String = "") {
         navController.navigate("$BROWSE_SCREEN/$path");
     }
+
 }

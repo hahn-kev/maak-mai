@@ -32,13 +32,12 @@ fun MaakMaiNavGraph(
         composable(
             MaakMaiDestinations.BROWSE_ROUTE,
             arguments = listOf(
-                navArgument(PATH_ARG) { type = NavType.StringType; defaultValue = "" }
+                navArgument(PATH_ARG) { type = NavType.StringType; defaultValue = "/" }
             )
         ) {
             BrowseScreen(
-//                path = entry.arguments?.getString(PATH_ARG) ?: "",
-//                onFolderClick = { path -> navActions.navigateToBrowse(path) },
-//                onFileClick = {}
+                onFolderClick = { folder -> navActions.navigateToBrowse(folder.path) },
+                onBookmarkClick = {}
             )
         }
     }
