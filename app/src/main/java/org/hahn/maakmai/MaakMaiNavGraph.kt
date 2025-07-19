@@ -1,9 +1,12 @@
 package org.hahn.maakmai
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -44,7 +47,7 @@ fun MaakMaiNavGraph(
             val currentPath = navController.currentBackStackEntry?.arguments?.getString(PATH_ARG) ?: "/"
             BrowseScreen(
                 onFolderClick = { folder -> navActions.navigateToBrowse(folder.path) },
-                onBookmarkClick = {},
+                onBookmarkClick = { bookmark -> /* URL opening is now handled in BookmarkCard */ },
                 onAddBookmark = {navActions.navigateToAdd(currentPath)},
                 onEditBookmark = { bookmarkId ->
                     navActions.navigateToEdit(bookmarkId)
