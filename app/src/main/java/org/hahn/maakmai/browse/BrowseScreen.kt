@@ -1,7 +1,9 @@
 package org.hahn.maakmai.browse
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,6 +58,7 @@ fun BrowseScreen(
     onBookmarkClick: (Bookmark) -> Unit,
     onFolderClick: (FolderViewModel) -> Unit,
     onAddBookmark: () -> Unit,
+    onEditBookmark: (UUID) -> Unit,
     onAddFolder: () -> Unit,
     onEditFolder: (UUID) -> Unit,
     onBack: () -> Unit,
@@ -128,6 +131,7 @@ fun BrowseScreen(
             modifier = Modifier.padding(paddingValues),
             onFolderClick = onFolderClick,
             onBookmarkClick = onBookmarkClick,
+            onBookmarkEdit = { onEditBookmark(it.id) },
             onAddBookmark = onAddBookmark,
             onAddFolder = onAddFolder
         )
@@ -143,6 +147,7 @@ fun BrowseContent(
     modifier: Modifier = Modifier,
     onFolderClick: (FolderViewModel) -> Unit = {},
     onBookmarkClick: (Bookmark) -> Unit = {},
+    onBookmarkEdit: (Bookmark) -> Unit = {},
     onAddBookmark: () -> Unit = {},
     onAddFolder: () -> Unit = {},
 ) {
@@ -172,7 +177,11 @@ fun BrowseContent(
                 )
             ) {
                 items(bookmarks) { bookmark ->
-                    BookmarkCard(bookmark, onBookmarkClick)
+                    BookmarkCard(
+                        bookmark = bookmark,
+                        onOpen = onBookmarkClick,
+                        onEdit = onBookmarkEdit
+                    )
                 }
             }
         }
@@ -247,12 +256,16 @@ fun EmptyStateView(modifier: Modifier = Modifier, onAddBookmark: () -> Unit = {}
 }
 
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun BookmarkCard(bookmark: Bookmark, onOpen: (Bookmark) -> Unit = {}) {
+fun BookmarkCard(bookmark: Bookmark, onOpen: (Bookmark) -> Unit = {}, onEdit: (Bookmark) -> Unit = {}) {
     Card(
         modifier = Modifier
             .padding(8.dp)
-            .clickable { onOpen(bookmark) }
+            .combinedClickable(
+                onClick = { onOpen(bookmark) },
+                onLongClick = { onEdit(bookmark) }
+            )
     ) {
         Image(
             painter = painterResource(R.drawable.teddy),

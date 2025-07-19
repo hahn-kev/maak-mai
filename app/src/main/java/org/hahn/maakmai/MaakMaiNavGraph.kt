@@ -46,6 +46,9 @@ fun MaakMaiNavGraph(
                 onFolderClick = { folder -> navActions.navigateToBrowse(folder.path) },
                 onBookmarkClick = {},
                 onAddBookmark = {navActions.navigateToAdd(currentPath)},
+                onEditBookmark = { bookmarkId ->
+                    navActions.navigateToEdit(bookmarkId)
+                },
                 onAddFolder = {
                     navActions.navigateToAddFolder(currentPath, null)
                 },
