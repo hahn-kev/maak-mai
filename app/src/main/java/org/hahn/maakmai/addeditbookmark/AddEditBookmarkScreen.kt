@@ -175,9 +175,7 @@ private fun AddEditBookmarkContent(
                 .fillMaxWidth()
                 .padding(top = 8.dp),
             onValueChange = { newTagsString ->
-                val newTags = newTagsString.split(",")
-                    .map { it.trim() }
-                    .filter { it.isNotEmpty() }
+                val newTags = newTagsString.split(",").map { it.trim() }
                 onTagsChanged(newTags)
             },
             label = { Text(text = "Tags (comma-separated)") },

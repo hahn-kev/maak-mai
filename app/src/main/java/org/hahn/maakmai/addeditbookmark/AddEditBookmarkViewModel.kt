@@ -97,7 +97,7 @@ class AddEditBookmarkViewModel @Inject constructor(
 
     fun saveBookmark() {
         viewModelScope.launch {
-            val bookmark = Bookmark(bookmarkId ?: UUID.randomUUID(), uiState.value.title, uiState.value.description, uiState.value.url, uiState.value.tags)
+            val bookmark = Bookmark(bookmarkId ?: UUID.randomUUID(), uiState.value.title, uiState.value.description, uiState.value.url, uiState.value.tags.filter { it.isNotBlank() })
             if (bookmarkId == null) {
                 bookmarkRepository.createBookmark(bookmark)
             } else {
