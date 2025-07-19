@@ -4,10 +4,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import org.hahn.maakmai.MaakMaiArgs.PATH_ARG
@@ -45,11 +47,19 @@ class BrowseViewModel @Inject constructor(
     private val currentPath: String = savedStateHandle[PATH_ARG]!!
     private val _showAll = savedStateHandle.getStateFlow(SHOW_ALL_SAVED_STATE_KEY, false)
     private val _bookmarks = bookmarkRepository.getBookmarksStream()
-    private val _rootFolder = folderRepository.getFoldersStream().map { folders -> TagFolder(tag = "root", children = folders, id = UUID.randomUUID()) }.distinctUntilChanged()
+    private val _rootFolder = folderRepository.getFoldersStream()
+        .map { folders -> TagFolder(tag = "root", children = folders, id = UUID.randomUUID()) }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
 
     private val _tags = currentPath.split("/").filter { f -> f.isNotEmpty() }.toHashSet()
-    private val _currentFolder = _rootFolder.map { root -> root.findFolder(currentPath) ?: root }.distinctUntilChanged()
-    private val _visibleFolders = _currentFolder.map { folder -> folder.children }
+    private val _currentFolder = _rootFolder
+        .map { root -> root.findFolder(currentPath) ?: root }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+    private val _visibleFolders = _currentFolder
+        .map { folder -> folder.children }
+        .flowOn(Dispatchers.Default)
     private val _visibleBookmarks = combine(_bookmarks, _currentFolder, _showAll)
     { bookmarks, currentFolder, showAll ->
         getVisibleBookmarks(
@@ -59,7 +69,9 @@ class BrowseViewModel @Inject constructor(
                 null
             }, bookmarks
         )
-    }.distinctUntilChanged()
+    }
+    .distinctUntilChanged()
+    .flowOn(Dispatchers.Default)
     private val _isLoading = MutableStateFlow(false)
 
     val uiState: StateFlow<BrowseUiState> = combine(_isLoading, _visibleFolders, _visibleBookmarks, _showAll, _currentFolder)
@@ -72,7 +84,9 @@ class BrowseViewModel @Inject constructor(
             showAll = showAll,
             currentFolderId = if (currentPath != "/") currentFolder.id else null
         )
-    }.stateIn(
+    }
+    .flowOn(Dispatchers.Default)
+    .stateIn(
         scope = viewModelScope,
         started = WhileUiSubscribed,
         initialValue = BrowseUiState("/", listOf(), listOf(), true, false)
