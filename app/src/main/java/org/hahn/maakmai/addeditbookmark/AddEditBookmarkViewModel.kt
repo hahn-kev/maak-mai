@@ -1,24 +1,25 @@
 package org.hahn.maakmai.addeditbookmark
 
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.hahn.maakmai.MaakMaiArgs
 import org.hahn.maakmai.data.BookmarkRepository
+import org.hahn.maakmai.data.FolderRepository
 import org.hahn.maakmai.model.Bookmark
+import org.hahn.maakmai.model.TagFolder
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 import java.util.UUID
 import javax.inject.Inject
-import androidx.core.net.toUri
-import timber.log.Timber
-import java.net.URLDecoder
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
 data class AddEditBookmarkUiState(
     val title: String = "",
@@ -28,13 +29,16 @@ data class AddEditBookmarkUiState(
     val isLoading: Boolean = false,
     val isBookmarkSaved: Boolean = false,
     val isBookmarkDeleted: Boolean = false,
-    val isNew: Boolean = true
+    val isNew: Boolean = true,
+    val selectedFolderPath: List<TagFolder> = listOf(),
+    val folders: List<TagFolder> = listOf()
 )
 
 @HiltViewModel
 class AddEditBookmarkViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val bookmarkRepository: BookmarkRepository
+    private val bookmarkRepository: BookmarkRepository,
+    private val folderRepository: FolderRepository
 ) : ViewModel() {
     private val bookmarkId: UUID? = savedStateHandle.get<String?>(MaakMaiArgs.BOOKMARK_ID_ARG).let { id -> if (id.isNullOrBlank()) null else UUID.fromString(id) }
     private val path: String? = savedStateHandle[MaakMaiArgs.PATH_ARG]
@@ -42,11 +46,13 @@ class AddEditBookmarkViewModel @Inject constructor(
     private val sharedTitle: String? = savedStateHandle.get<String?>(MaakMaiArgs.BOOKMARK_TITLE_ARG)?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
     private val sharedSubject: String? = savedStateHandle.get<String?>(MaakMaiArgs.SUBJECT_ARG)?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
 
-    private val _uiState = MutableStateFlow(AddEditBookmarkUiState(
-        tags = path?.split("/")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList(),
-        isNew = bookmarkId == null
-    ))
-    val uiState = _uiState.asStateFlow();
+    private val _uiState = MutableStateFlow(
+        AddEditBookmarkUiState(
+            isNew = bookmarkId == null
+        )
+    )
+    val uiState = _uiState.asStateFlow()
+
 
     init {
         if (bookmarkId != null) {
@@ -54,6 +60,15 @@ class AddEditBookmarkViewModel @Inject constructor(
         } else {
             // Handle shared URL if available
             processSharedContent()
+        }
+        viewModelScope.launch {
+            folderRepository.getFoldersStream().collectLatest { folders ->
+                _uiState.update {
+                    it.copy(
+                        folders = folders,
+                        selectedFolderPath = path?.let { TagFolder(tag = "/", children = folders, id = UUID.randomUUID()).findFolders(it) } ?: emptyList())
+                }
+            }
         }
     }
 
@@ -185,10 +200,57 @@ class AddEditBookmarkViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Selects a folder and updates the selected folder path
+     * @param folder The folder to select
+     */
+    fun selectFolder(folder: TagFolder) {
+        val currentPath = _uiState.value.selectedFolderPath
+
+        // Check if this folder is already in the path
+        val existingIndex = currentPath.indexOfFirst { it.id == folder.id }
+        if (existingIndex != -1) {
+            // If it's already in the path, truncate the path to this folder
+            _uiState.update {
+                it.copy(selectedFolderPath = currentPath.subList(0, existingIndex + 1))
+            }
+        } else {
+            // Otherwise, add it to the path
+            _uiState.update {
+                it.copy(selectedFolderPath = currentPath + folder)
+            }
+        }
+    }
+
+    /**
+     * Clears the selected folder path
+     */
+    fun clearSelectedFolders() {
+        _uiState.update {
+            it.copy(selectedFolderPath = emptyList())
+        }
+    }
+
+    fun removeLastSelectedFolder() {
+        val currentPath = _uiState.value.selectedFolderPath
+        if (currentPath.isNotEmpty()) {
+            _uiState.update {
+                it.copy(selectedFolderPath = currentPath.dropLast(1))
+            }
+        }
+    }
 
     fun saveBookmark() {
         viewModelScope.launch {
-            val bookmark = Bookmark(bookmarkId ?: UUID.randomUUID(), uiState.value.title, uiState.value.description, uiState.value.url, uiState.value.tags.filter { it.isNotBlank() })
+
+            val folderTags = uiState.value.selectedFolderPath.map { it.tag }
+            val bookmark =
+                Bookmark(
+                    bookmarkId ?: UUID.randomUUID(),
+                    uiState.value.title,
+                    uiState.value.description,
+                    uiState.value.url,
+                    uiState.value.tags.filter { it.isNotBlank() } + folderTags)
             if (bookmarkId == null) {
                 bookmarkRepository.createBookmark(bookmark)
             } else {

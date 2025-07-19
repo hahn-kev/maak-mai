@@ -2,8 +2,11 @@ package org.hahn.maakmai.addeditbookmark
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -12,6 +15,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -29,12 +33,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.focus.FocusManager
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -42,12 +44,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.hahn.maakmai.model.TagFolder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,16 +87,22 @@ fun AddEditBookmarkScreen(
         }
     ) { paddingValues ->
         val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
         AddEditBookmarkContent(
             title = uiState.title,
             description = uiState.description,
             url = uiState.url,
             tags = uiState.tags,
+            folders = uiState.folders,
+            selectedFolderPath = uiState.selectedFolderPath,
             showDelete = !uiState.isNew,
             onTitleChanged = viewModel::updateTitle,
             onDescriptionChanged = viewModel::updateDescription,
             onUrlChanged = viewModel::updateUrl,
             onTagsChanged = viewModel::updateTags,
+            onFolderSelected = viewModel::selectFolder,
+            onClearFolders = viewModel::clearSelectedFolders,
+            onRemoveLastFolder = viewModel::removeLastSelectedFolder,
             onDeleteClick = { showDeleteConfirmation = true },
             modifier = Modifier.padding(paddingValues)
         )
@@ -145,9 +155,14 @@ private fun AddEditBookmarkContent(
     onDescriptionChanged: (String) -> Unit = {},
     onUrlChanged: (String?) -> Unit = {},
     onTagsChanged: (List<String>) -> Unit = {},
+    folders: List<TagFolder> = emptyList(),
+    selectedFolderPath: List<TagFolder> = emptyList(),
+    onFolderSelected: (TagFolder) -> Unit = {},
+    onClearFolders: () -> Unit = {},
     showDelete: Boolean = false,
     onDeleteClick: () -> Unit = {},
     modifier: Modifier = Modifier,
+    onRemoveLastFolder: () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -210,13 +225,32 @@ private fun AddEditBookmarkContent(
             )
         )
 
+        // Folder badge selector
+        if (folders.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Select Folders:",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            FolderBadgeSelector(
+                folders = folders,
+                selectedFolderPath = selectedFolderPath,
+                onFolderSelected = onFolderSelected,
+                onBackClicked = onRemoveLastFolder,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
         // Simple tags implementation - comma-separated string
         val tagsString = tags.joinToString(", ")
         OutlinedTextField(
             value = tagsString,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp),
+                .padding(top = 16.dp),
             onValueChange = { newTagsString ->
                 val newTags = newTagsString.split(",").map { it.trim() }
                 onTagsChanged(newTags)
@@ -243,6 +277,69 @@ private fun AddEditBookmarkContent(
                     modifier = Modifier.padding(end = 8.dp)
                 )
                 Text("Delete Bookmark")
+            }
+        }
+    }
+}
+
+@Composable
+private fun FolderBadgeSelector(
+    folders: List<TagFolder>,
+    selectedFolderPath: List<TagFolder>,
+    onFolderSelected: (TagFolder) -> Unit,
+    onBackClicked: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        // Show navigation path
+        if (selectedFolderPath.isNotEmpty()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+                    .horizontalScroll(rememberScrollState())
+            ) {
+                IconButton(onClick = onBackClicked) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Go back")
+                }
+
+                selectedFolderPath.forEachIndexed { index, folder ->
+                    if (index > 0) {
+                        Text(" > ", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Text(
+                        text = folder.tag,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Show folder badges
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(bottom = 8.dp)
+        ) {
+            // Get the current level folders
+            val currentFolders = if (selectedFolderPath.isEmpty()) {
+                // If no folder is selected, show root folders
+                folders.filter { it.rootFolder }
+            } else {
+                // Otherwise, show children of the last selected folder
+                selectedFolderPath.last().children
+            }
+
+            currentFolders.forEach { folder ->
+                FilterChip(
+                    selected = selectedFolderPath.any { it.id == folder.id },
+                    onClick = { onFolderSelected(folder) },
+                    label = { Text(folder.tag) },
+                    modifier = Modifier.padding(end = 8.dp)
+                )
             }
         }
     }
