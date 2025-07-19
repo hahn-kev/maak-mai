@@ -117,7 +117,7 @@ fun BrowseScreen(
                                 }
                             }
                         }
-                        Switch(uiState.showAll, onCheckedChange = viewModel::setShowAll)
+                        Switch(uiState.showAll, onCheckedChange = viewModel::setShowAll, modifier = Modifier.padding(end = 8.dp))
                         Text(text = "Show all", style = MaterialTheme.typography.bodySmall)
                     }
                 },
