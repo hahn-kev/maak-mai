@@ -1,13 +1,19 @@
 package org.hahn.maakmai.di
 
+import android.content.Context
+import androidx.room.Room
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import org.hahn.maakmai.data.BookmarkRepository
 import org.hahn.maakmai.data.BookmarkRepositoryMemory
+import org.hahn.maakmai.data.BookmarkRepositoryRoom
 import org.hahn.maakmai.data.FolderRepository
 import org.hahn.maakmai.data.FolderRepositoryMemory
+import org.hahn.maakmai.data.source.local.MaakMaiDatabase
 import javax.inject.Singleton
 
 @Module
@@ -15,10 +21,31 @@ import javax.inject.Singleton
 abstract class RepositoryModule {
     @Binds
     @Singleton
-    abstract fun bindBookmarkRepository(impl: BookmarkRepositoryMemory): BookmarkRepository
+    abstract fun bindBookmarkRepository(impl: BookmarkRepositoryRoom): BookmarkRepository
 
     @Binds
     @Singleton
     abstract fun bindFolderRepository(impl: FolderRepositoryMemory): FolderRepository
+}
+
+
+@Module
+@InstallIn(SingletonComponent::class)
+object DatabaseModule {
+
+    @Provides
+    @Singleton
+    fun provideDatabase(
+        @ApplicationContext context: Context,
+    ): MaakMaiDatabase = Room.databaseBuilder(
+        context,
+        MaakMaiDatabase::class.java,
+        "MaakMai.db"
+    ).build()
+
+    @Provides
+    fun provideBookmarkDao(
+        database: MaakMaiDatabase,
+    ) = database.bookmarkDao()
 
 }
