@@ -22,7 +22,8 @@ data class AddEditFolderUiState(
     val isLoading: Boolean = false,
     val isFolderSaved: Boolean = false,
     val isFolderDeleted: Boolean = false,
-    val childFolders: List<TagFolder> = emptyList()
+    val childFolders: List<TagFolder> = emptyList(),
+    val tagGroups: String = ""
 )
 
 @HiltViewModel
@@ -76,6 +77,7 @@ class AddEditFolderViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         tag = folder.tag,
+                        tagGroups = folder.tagGroups.joinToString(", "),
                         isLoading = false
                     )
                 }
@@ -125,17 +127,29 @@ class AddEditFolderViewModel @Inject constructor(
         }
     }
 
+    fun updateTagGroups(newTagGroups: String) {
+        _uiState.update {
+            it.copy(tagGroups = newTagGroups)
+        }
+    }
+
     fun saveFolder() {
         if (uiState.value.tag.isBlank()) {
             return
         }
 
         viewModelScope.launch {
+            // Parse tag groups from comma-separated string
+            val tagGroupsList = uiState.value.tagGroups
+                .split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
 
             val folder = Folder(
                 id = folderId ?: UUID.randomUUID(),
                 tag = uiState.value.tag.trim(),
-                parent = parentId
+                parent = parentId,
+                tagGroups = tagGroupsList
             )
 
             val result = if (folderId == null) {

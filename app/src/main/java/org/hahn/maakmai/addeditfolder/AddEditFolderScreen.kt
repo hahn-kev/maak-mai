@@ -83,8 +83,10 @@ fun AddEditFolderScreen(
             tag = uiState.tag,
             parentPath = uiState.parentPath,
             childFolders = uiState.childFolders,
+            tagGroups = uiState.tagGroups,
             showDelete = !uiState.isNew,
             onTagChanged = viewModel::updateTag,
+            onTagGroupsChanged = viewModel::updateTagGroups,
             onDeleteClick = { showDeleteConfirmation = true },
             modifier = Modifier.padding(paddingValues)
         )
@@ -141,7 +143,9 @@ private fun AddEditFolderContent(
     modifier: Modifier = Modifier,
     showDelete: Boolean = true,
     childFolders: List<TagFolder> = emptyList(),
+    tagGroups: String = "",
     onTagChanged: (String) -> Unit = {},
+    onTagGroupsChanged: (String) -> Unit = {},
     onDeleteClick: () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
@@ -172,6 +176,22 @@ private fun AddEditFolderContent(
             textStyle = MaterialTheme.typography.headlineSmall
                 .copy(fontWeight = FontWeight.Bold),
             maxLines = 1,
+            colors = textFieldColors,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(
+                onDone = { focusManager.clearFocus() }
+            )
+        )
+
+        // Tag groups field (comma-separated)
+        OutlinedTextField(
+            value = tagGroups,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp),
+            onValueChange = onTagGroupsChanged,
+            label = { Text(text = "Tag Groups (comma-separated)") },
+            textStyle = MaterialTheme.typography.bodyLarge,
             colors = textFieldColors,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(
@@ -234,6 +254,7 @@ private fun AddEditFolderContentPreview() {
             AddEditFolderContent(
                 tag = "New Folder",
                 parentPath = "/knitting",
+                tagGroups = "group1, group2, group3",
                 childFolders = listOf(
                     TagFolder(
                         id = UUID.randomUUID(),
