@@ -1,6 +1,7 @@
 package org.hahn.maakmai
 
 import androidx.navigation.NavController
+import androidx.navigation.NavOptions
 import org.hahn.maakmai.MaakMaiArgs.BOOKMARK_ID_ARG
 import org.hahn.maakmai.MaakMaiArgs.FOLDER_ID_ARG
 import org.hahn.maakmai.MaakMaiArgs.PARENT_PATH_ARG
@@ -32,12 +33,17 @@ object MaakMaiDestinations {
 }
 
 class MaakMaiNavigationActions(private val navController: NavController) {
-    fun navigateToBrowse(path: String = "") {
-        navController.navigate("$BROWSE_SCREEN?$PATH_ARG=$path");
+    private fun browseRoute(path: String): String {
+        return "$BROWSE_SCREEN?$PATH_ARG=$path"
+    }
+    fun navigateToBrowse(path: String = "", currentRoute: String? = null) {
+        navController.navigate(browseRoute(path), currentRoute?.let {
+            NavOptions.Builder().setPopUpTo(it, true).build()
+        } ?: NavOptions.Builder().build());
     }
 
-    fun navigateToBrowseParent(path: String) {
-        navigateToBrowse(path.substringBeforeLast('/'))
+    fun backToBrowseParent(path: String) {
+        navController.popBackStack(browseRoute(path), true)
     }
 
     fun navigateToAdd() {

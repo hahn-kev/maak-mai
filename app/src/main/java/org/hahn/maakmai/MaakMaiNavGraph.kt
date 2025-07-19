@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -17,7 +16,6 @@ import org.hahn.maakmai.MaakMaiArgs.FOLDER_ID_ARG
 import org.hahn.maakmai.MaakMaiArgs.PARENT_PATH_ARG
 import org.hahn.maakmai.MaakMaiArgs.PATH_ARG
 import org.hahn.maakmai.MaakMaiArgs.TITLE_ARG
-import java.util.UUID
 import org.hahn.maakmai.addeditbookmark.AddEditBookmarkScreen
 import org.hahn.maakmai.addeditfolder.AddEditFolderScreen
 import org.hahn.maakmai.browse.BrowseScreen
@@ -79,7 +77,7 @@ fun MaakMaiNavGraph(
             AddEditFolderScreen(
                 topBarTitle = entry.arguments?.getString(TITLE_ARG)!!,
                 onFolderUpdate = { navController.popBackStack() },
-                onFolderDelete = { navActions.navigateToBrowseParent(entry.arguments?.getString(PARENT_PATH_ARG)!!) },
+                onFolderDelete = { navActions.backToBrowseParent(entry.arguments?.getString(PARENT_PATH_ARG)!!) },
                 onBack = { navController.popBackStack() }
             )
         }
