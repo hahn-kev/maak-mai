@@ -3,7 +3,6 @@ package org.hahn.maakmai
 import androidx.navigation.NavController
 import org.hahn.maakmai.MaakMaiArgs.BOOKMARK_ID_ARG
 import org.hahn.maakmai.MaakMaiArgs.FOLDER_ID_ARG
-import org.hahn.maakmai.MaakMaiArgs.PARENT_ID_ARG
 import org.hahn.maakmai.MaakMaiArgs.PARENT_PATH_ARG
 import org.hahn.maakmai.MaakMaiArgs.PATH_ARG
 import org.hahn.maakmai.MaakMaiArgs.TITLE_ARG
@@ -24,13 +23,12 @@ object MaakMaiArgs {
     const val TITLE_ARG = "title";
     const val FOLDER_ID_ARG = "folderId";
     const val PARENT_PATH_ARG = "parentPath";
-    const val PARENT_ID_ARG = "parentId";
 }
 
 object MaakMaiDestinations {
     const val BROWSE_ROUTE = "$BROWSE_SCREEN?$PATH_ARG={$PATH_ARG}"
     const val ADD_EDIT_BOOKMARK_ROUTE = "$ADD_EDIT_BOOKMARK_SCREEN/{$TITLE_ARG}?$BOOKMARK_ID_ARG={$BOOKMARK_ID_ARG}"
-    const val ADD_EDIT_FOLDER_ROUTE = "$ADD_EDIT_FOLDER_SCREEN/{$TITLE_ARG}?$FOLDER_ID_ARG={$FOLDER_ID_ARG}&$PARENT_PATH_ARG={$PARENT_PATH_ARG}&$PARENT_ID_ARG={$PARENT_ID_ARG}"
+    const val ADD_EDIT_FOLDER_ROUTE = "$ADD_EDIT_FOLDER_SCREEN/{$TITLE_ARG}?$FOLDER_ID_ARG={$FOLDER_ID_ARG}&$PARENT_PATH_ARG={$PARENT_PATH_ARG}"
 }
 
 class MaakMaiNavigationActions(private val navController: NavController) {
@@ -47,10 +45,10 @@ class MaakMaiNavigationActions(private val navController: NavController) {
     }
 
     fun navigateToAddFolder(parentPath: String, parentId: UUID?) {
-        navController.navigate("$ADD_EDIT_FOLDER_SCREEN/Add Folder?$PARENT_PATH_ARG=$parentPath&$PARENT_ID_ARG=$parentId")
+        navController.navigate("$ADD_EDIT_FOLDER_SCREEN/Add Folder?$PARENT_PATH_ARG=$parentPath")
     }
 
     fun navigateToEditFolder(folderId: UUID, parentPath: String, parentId: UUID?) {
-        navController.navigate("$ADD_EDIT_FOLDER_SCREEN/Edit Folder?$FOLDER_ID_ARG=$folderId&$PARENT_PATH_ARG=$parentPath&$PARENT_ID_ARG=$parentId")
+        navController.navigate("$ADD_EDIT_FOLDER_SCREEN/Edit Folder?$FOLDER_ID_ARG=$folderId&$PARENT_PATH_ARG=$parentPath")
     }
 }

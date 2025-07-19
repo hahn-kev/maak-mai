@@ -13,7 +13,6 @@ import androidx.navigation.navArgument
 import kotlinx.coroutines.CoroutineScope
 import org.hahn.maakmai.MaakMaiArgs.BOOKMARK_ID_ARG
 import org.hahn.maakmai.MaakMaiArgs.FOLDER_ID_ARG
-import org.hahn.maakmai.MaakMaiArgs.PARENT_ID_ARG
 import org.hahn.maakmai.MaakMaiArgs.PARENT_PATH_ARG
 import org.hahn.maakmai.MaakMaiArgs.PATH_ARG
 import org.hahn.maakmai.MaakMaiArgs.TITLE_ARG
@@ -70,7 +69,6 @@ fun MaakMaiNavGraph(
                 navArgument(TITLE_ARG) { type = NavType.StringType; defaultValue = "Edit Folder" },
                 navArgument(FOLDER_ID_ARG) { type = NavType.StringType; nullable = true },
                 navArgument(PARENT_PATH_ARG) { type = NavType.StringType; defaultValue = "/" },
-                navArgument(PARENT_ID_ARG) { type = NavType.StringType; nullable = true }
             )) { entry ->
             AddEditFolderScreen(
                 topBarTitle = entry.arguments?.getString(TITLE_ARG)!!,

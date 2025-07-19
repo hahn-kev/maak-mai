@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import org.hahn.maakmai.MaakMaiArgs
 import org.hahn.maakmai.data.Folder
 import org.hahn.maakmai.data.FolderRepository
+import org.hahn.maakmai.model.TagFolder
 import java.util.UUID
 import javax.inject.Inject
 
@@ -28,7 +29,7 @@ class AddEditFolderViewModel @Inject constructor(
 ) : ViewModel() {
     private val folderId: UUID? = savedStateHandle[MaakMaiArgs.FOLDER_ID_ARG]
     private val parentPath: String = savedStateHandle[MaakMaiArgs.PARENT_PATH_ARG] ?: "/"
-    private val parentId: UUID? = savedStateHandle[MaakMaiArgs.PARENT_ID_ARG]
+    private var parentId: UUID? = null
 
     private val _uiState = MutableStateFlow(AddEditFolderUiState(parentPath = parentPath))
     val uiState = _uiState.asStateFlow()
@@ -36,6 +37,17 @@ class AddEditFolderViewModel @Inject constructor(
     init {
         if (folderId != null) {
             loadFolder(folderId)
+        } else {
+            determineParentId()
+        }
+    }
+
+    private fun determineParentId() {
+        viewModelScope.launch {
+            val folders = folderRepository.getAllFolders()
+            if (folders.isNotEmpty() && parentPath != "/") {
+                parentId = TagFolder(tag = "root", children = folders, id = UUID.randomUUID()).findFolder(parentPath)?.id
+            }
         }
     }
 
@@ -46,10 +58,16 @@ class AddEditFolderViewModel @Inject constructor(
             )
         }
         viewModelScope.launch {
-            val folders = folderRepository.getAllFolders()
-            val folder = folders.find { it.id == folderId }
-            
+            val allFolders = folderRepository.getAllFolders()
+            val folder = allFolders.find { it.id == folderId }
+
             if (folder != null) {
+                // When editing an existing folder, we need to determine the parent ID
+                // from the parent path if it's not the root folder
+                if (parentPath != "/") {
+                    parentId = TagFolder(tag = "root", children = allFolders, id = UUID.randomUUID()).findFolder(parentPath)?.id
+                }
+
                 _uiState.update {
                     it.copy(
                         tag = folder.tag,
@@ -76,7 +94,7 @@ class AddEditFolderViewModel @Inject constructor(
         if (uiState.value.tag.isBlank()) {
             return
         }
-        
+
         viewModelScope.launch {
 
             val folder = Folder(
@@ -84,13 +102,13 @@ class AddEditFolderViewModel @Inject constructor(
                 tag = uiState.value.tag,
                 parent = parentId
             )
-            
+
             val result = if (folderId == null) {
                 folderRepository.createFolder(folder)
             } else {
                 folderRepository.updateFolder(folder)
             }
-            
+
             if (result.isSuccess) {
                 _uiState.update {
                     it.copy(
