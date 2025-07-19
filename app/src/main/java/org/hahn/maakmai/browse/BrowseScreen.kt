@@ -2,6 +2,7 @@ package org.hahn.maakmai.browse
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +15,9 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkAdd
+import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -49,6 +53,7 @@ fun BrowseScreen(
     onBookmarkClick: (Bookmark) -> Unit,
     onFolderClick: (FolderViewModel) -> Unit,
     onAddBookmark: () -> Unit,
+    onAddFolder: () -> Unit,
     onBack: () -> Unit,
     viewModel: BrowseViewModel = hiltViewModel(),
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
@@ -57,8 +62,30 @@ fun BrowseScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            SmallFloatingActionButton(onClick = onAddBookmark) {
-                Icon(Icons.Default.Add, contentDescription = "Add bookmark")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                // FAB for adding a folder
+                SmallFloatingActionButton(
+                    onClick = { onAddFolder() },
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CreateNewFolder,
+                        contentDescription = "Add folder",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                // FAB for adding a bookmark
+                SmallFloatingActionButton(onClick = onAddBookmark) {
+                    Icon(
+                        imageVector = Icons.Default.BookmarkAdd,
+                        contentDescription = "Add bookmark",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         },
         topBar = {
