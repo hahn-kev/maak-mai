@@ -27,7 +27,9 @@ class AddEditFolderViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val folderRepository: FolderRepository
 ) : ViewModel() {
-    private val folderId: UUID? = savedStateHandle[MaakMaiArgs.FOLDER_ID_ARG]
+    private val folderId: UUID? = savedStateHandle.get<String?>(MaakMaiArgs.FOLDER_ID_ARG).let { id ->
+        if (id.isNullOrBlank()) null else UUID.fromString(id)
+    }
     private val parentPath: String = savedStateHandle[MaakMaiArgs.PARENT_PATH_ARG] ?: "/"
     private var parentId: UUID? = null
 
@@ -44,7 +46,7 @@ class AddEditFolderViewModel @Inject constructor(
 
     private fun determineParentId() {
         viewModelScope.launch {
-            val folders = folderRepository.getAllFolders()
+            val folders = folderRepository.getRootFolders()
             if (folders.isNotEmpty() && parentPath != "/") {
                 parentId = TagFolder(tag = "root", children = folders, id = UUID.randomUUID()).findFolder(parentPath)?.id
             }
@@ -58,15 +60,12 @@ class AddEditFolderViewModel @Inject constructor(
             )
         }
         viewModelScope.launch {
-            val allFolders = folderRepository.getAllFolders()
-            val folder = allFolders.find { it.id == folderId }
+            val folder = folderRepository.getFolderById(folderId).getOrNull()
 
             if (folder != null) {
                 // When editing an existing folder, we need to determine the parent ID
                 // from the parent path if it's not the root folder
-                if (parentPath != "/") {
-                    parentId = TagFolder(tag = "root", children = allFolders, id = UUID.randomUUID()).findFolder(parentPath)?.id
-                }
+                parentId = folder.parent
 
                 _uiState.update {
                     it.copy(

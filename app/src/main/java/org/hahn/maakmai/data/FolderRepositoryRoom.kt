@@ -12,7 +12,7 @@ import javax.inject.Singleton
 class FolderRepositoryRoom @Inject constructor(
     private val folderDao: FolderDao
 ) : FolderRepository {
-    
+
     override suspend fun createFolder(folder: Folder): Result<Unit> {
         return try {
             folderDao.insertFolder(folder)
@@ -35,7 +35,20 @@ class FolderRepositoryRoom @Inject constructor(
         }
     }
 
-    override suspend fun getAllFolders(): List<TagFolder> {
+    override suspend fun getFolderById(id: UUID): Result<Folder> {
+        return try {
+            val folder = folderDao.getFolderById(id)
+            if (folder != null) {
+                Result.success(folder)
+            } else {
+                Result.failure(NoSuchElementException("Folder with id $id not found"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getRootFolders(): List<TagFolder> {
         return buildTagFolders(folderDao.getAllFolders())
     }
 
@@ -63,7 +76,7 @@ class FolderRepositoryRoom @Inject constructor(
             // Check if folder has children
             val allFolders = folderDao.getAllFolders()
             val hasChildren = allFolders.any { it.parent == id }
-            
+
             if (hasChildren) {
                 Result.failure(IllegalStateException("Cannot delete folder with children"))
             } else {
@@ -92,7 +105,7 @@ class FolderRepositoryRoom @Inject constructor(
     private fun buildTagFolderHierarchy(folderId: UUID, allFolders: List<Folder>): TagFolder {
         val folder = allFolders.find { it.id == folderId }
             ?: throw IllegalStateException("Folder not found: $folderId")
-        
+
         val children = allFolders
             .filter { it.parent == folderId }
             .map { buildTagFolderHierarchy(it.id, allFolders) }

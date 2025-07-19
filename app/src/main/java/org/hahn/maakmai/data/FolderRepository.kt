@@ -9,7 +9,9 @@ interface FolderRepository {
 
     suspend fun getFolderByTag(tag: String): Result<Folder>
 
-    suspend fun getAllFolders(): List<TagFolder>
+    suspend fun getFolderById(id: UUID): Result<Folder>
+
+    suspend fun getRootFolders(): List<TagFolder>
 
     fun getFoldersStream(): Flow<List<TagFolder>>
 

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -54,6 +55,7 @@ fun BrowseScreen(
     onFolderClick: (FolderViewModel) -> Unit,
     onAddBookmark: () -> Unit,
     onAddFolder: () -> Unit,
+    onEditFolder: (UUID) -> Unit,
     onBack: () -> Unit,
     viewModel: BrowseViewModel = hiltViewModel(),
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
@@ -93,6 +95,17 @@ fun BrowseScreen(
                 title = { Text(text = uiState.path) },
                 actions = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Edit folder button - only visible when not at root
+                        if (uiState.path != "/") {
+                            uiState.currentFolderId?.let { folderId ->
+                                IconButton(onClick = { onEditFolder(folderId) }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Edit folder"
+                                    )
+                                }
+                            }
+                        }
                         Switch(uiState.showAll, onCheckedChange = viewModel::setShowAll)
                         Text(text = "Show all", style = MaterialTheme.typography.bodySmall)
                     }

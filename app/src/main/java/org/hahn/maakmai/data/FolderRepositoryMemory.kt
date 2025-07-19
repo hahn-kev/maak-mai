@@ -111,7 +111,20 @@ class FolderRepositoryMemory @Inject constructor() : FolderRepository {
         }
     }
 
-    override suspend fun getAllFolders(): List<TagFolder> {
+    override suspend fun getFolderById(id: UUID): Result<Folder> {
+        return try {
+            val folder = folders[id]
+            if (folder != null) {
+                Result.success(folder)
+            } else {
+                Result.failure(NoSuchElementException("Folder with id $id not found"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getRootFolders(): List<TagFolder> {
         return buildTagFolders()
     }
 

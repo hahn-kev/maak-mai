@@ -24,7 +24,8 @@ data class BrowseUiState(
     val visibleFolders: List<FolderViewModel>,
     val visibleBookmarks: List<Bookmark>,
     val loading: Boolean = false,
-    val showAll: Boolean = false
+    val showAll: Boolean = false,
+    val currentFolderId: UUID? = null
 )
 
 data class FolderViewModel(
@@ -61,14 +62,15 @@ class BrowseViewModel @Inject constructor(
     }.distinctUntilChanged()
     private val _isLoading = MutableStateFlow(false)
 
-    val uiState: StateFlow<BrowseUiState> = combine(_isLoading, _visibleFolders, _visibleBookmarks, _showAll)
-    { loading, visibleFolders, visibleBookmarks, showAll ->
+    val uiState: StateFlow<BrowseUiState> = combine(_isLoading, _visibleFolders, _visibleBookmarks, _showAll, _currentFolder)
+    { loading, visibleFolders, visibleBookmarks, showAll, currentFolder ->
         BrowseUiState(
             path = currentPath,
             visibleFolders = visibleFolders.map { folder -> FolderViewModel(folder, openFolderPath(currentPath, folder)) },
             visibleBookmarks = visibleBookmarks,
             loading = loading,
-            showAll = showAll
+            showAll = showAll,
+            currentFolderId = if (currentPath != "/") currentFolder.id else null
         )
     }.stateIn(
         scope = viewModelScope,
