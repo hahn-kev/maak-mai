@@ -41,7 +41,8 @@ fun MaakMaiNavGraph(
             BrowseScreen(
                 onFolderClick = { folder -> navActions.navigateToBrowse(folder.path) },
                 onBookmarkClick = {},
-                onAddBookmark = navActions::navigateToAdd
+                onAddBookmark = navActions::navigateToAdd,
+                onBack = { navController.popBackStack() }
             )
         }
         composable(
