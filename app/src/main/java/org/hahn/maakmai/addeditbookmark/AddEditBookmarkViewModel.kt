@@ -9,6 +9,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.hahn.maakmai.MaakMaiArgs
@@ -23,7 +24,7 @@ import javax.inject.Inject
 
 data class TagGroup(
     val prefix: String,
-    val tags: List<String>
+    val tags: List<TagUiState>
 )
 
 data class AddEditBookmarkUiState(
@@ -37,13 +38,11 @@ data class AddEditBookmarkUiState(
     val isNew: Boolean = true,
     val selectedFolderPath: List<TagFolder> = listOf(),
     val folders: List<TagFolder> = listOf(),
-    val tagsPrioritised: List<TagPrioritised> = listOf(),
-    val selectedPriorityTags: List<TagPrioritised> = listOf(),
-    val groupedFolderTags: List<TagGroup> = listOf(),
-    val selectedFolderTags: List<String> = listOf(),
+    val tagsPrioritised: List<TagUiState> = listOf(),
+    val groupedFolderTags: List<TagGroup> = listOf()
 )
 
-data class TagPrioritised(val tag: String, val count: Int)
+data class TagUiState(val tag: String, val isSelected: Boolean = false, val label: String? = null)
 
 @HiltViewModel
 class AddEditBookmarkViewModel @Inject constructor(
@@ -73,8 +72,8 @@ class AddEditBookmarkViewModel @Inject constructor(
             processSharedContent()
         }
         viewModelScope.launch {
-            val tags = bookmarkRepository.getTagsWithCount().map { tagsWithCount ->
-                TagPrioritised(tagsWithCount.key, tagsWithCount.value)
+            val tags = bookmarkRepository.getTagsWithCount().entries.sortedByDescending { it.value }.map { tagsWithCount ->
+                TagUiState(tag = tagsWithCount.key, label = "${tagsWithCount.key} (${tagsWithCount.value})")
             }
             _uiState.update {
                 it.copy(tagsPrioritised = tags)
@@ -270,7 +269,7 @@ class AddEditBookmarkViewModel @Inject constructor(
             // This tag is a prefix for other tags
             val prefixGroup = TagGroup(
                 prefix = tag,
-                tags = matchingTags
+                tags = matchingTags.map { TagUiState(it, false) }
             )
 
             // Only add if not already added (avoid duplicates)
@@ -310,8 +309,10 @@ class AddEditBookmarkViewModel @Inject constructor(
         viewModelScope.launch {
 
             val folderTags = uiState.value.selectedFolderPath.map { it.tag }
-            val priorityTags = uiState.value.selectedPriorityTags.map {it.tag}
-            val selectedFolderTags = uiState.value.selectedFolderTags
+            val priorityTags = uiState.value.tagsPrioritised.filter { it.isSelected }.map { it.tag }
+            val selectedFolderTags = uiState.value.groupedFolderTags.map { group ->
+                group.tags.filter { it.isSelected }.map { it.tag }
+            }.flatten()
             val bookmark =
                 Bookmark(
                     bookmarkId ?: UUID.randomUUID(),
@@ -352,18 +353,12 @@ class AddEditBookmarkViewModel @Inject constructor(
      * Toggles a priority tag selection
      * @param tag The priority tag to toggle
      */
-    fun togglePriorityTag(tag: TagPrioritised) {
-        val currentSelectedTags = _uiState.value.selectedPriorityTags
-        val isSelected = currentSelectedTags.any { it.tag == tag.tag }
-
-        _uiState.update {
-            if (isSelected) {
-                // If already selected, remove it
-                it.copy(selectedPriorityTags = currentSelectedTags.filter { t -> t.tag != tag.tag })
-            } else {
-                // If not selected, add it
-                it.copy(selectedPriorityTags = currentSelectedTags + tag)
-            }
+    fun togglePriorityTag(tag: TagUiState) {
+        val isSelected = tag.isSelected
+        _uiState.getAndUpdate { state ->
+            state.copy(
+                tagsPrioritised = state.tagsPrioritised.map { if (it.tag == tag.tag) it.copy(isSelected = !isSelected) else it }
+            )
         }
     }
 
@@ -371,18 +366,12 @@ class AddEditBookmarkViewModel @Inject constructor(
      * Toggles a folder tag selection
      * @param tag The folder tag to toggle
      */
-    fun toggleFolderTag(tag: String) {
-        val currentSelectedTags = _uiState.value.selectedFolderTags
-        val isSelected = currentSelectedTags.contains(tag)
-
-        _uiState.update {
-            if (isSelected) {
-                // If already selected, remove it
-                it.copy(selectedFolderTags = currentSelectedTags.filter { t -> t != tag })
-            } else {
-                // If not selected, add it
-                it.copy(selectedFolderTags = currentSelectedTags + tag)
-            }
+    fun toggleFolderTag(group: TagGroup, tag: TagUiState) {
+        val isSelected = tag.isSelected
+        _uiState.getAndUpdate { state ->
+            state.copy(
+                groupedFolderTags = state.groupedFolderTags.map { if (it.prefix == group.prefix) it.copy(tags = it.tags.map { if (it.tag == tag.tag) it.copy(isSelected = !isSelected) else it }) else it }
+            )
         }
     }
 }

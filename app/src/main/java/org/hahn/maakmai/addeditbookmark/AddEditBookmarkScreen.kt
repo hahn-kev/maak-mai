@@ -49,11 +49,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.text.TextStyle
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.hahn.maakmai.addeditbookmark.TagPrioritised
-import org.hahn.maakmai.addeditbookmark.TagGroup
 import org.hahn.maakmai.model.TagFolder
+import kotlin.reflect.KFunction2
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,9 +106,7 @@ fun AddEditBookmarkScreen(
             onClearFolders = viewModel::clearSelectedFolders,
             onRemoveLastFolder = viewModel::removeLastSelectedFolder,
             priorityTags = uiState.tagsPrioritised,
-            selectedPriorityTags = uiState.selectedPriorityTags,
             onPriorityTagToggled = viewModel::togglePriorityTag,
-            selectedFolderTags = uiState.selectedFolderTags,
             onFolderTagToggled = viewModel::toggleFolderTag,
             groupedFolderTags = uiState.groupedFolderTags,
             onDeleteClick = { showDeleteConfirmation = true },
@@ -171,11 +169,9 @@ private fun AddEditBookmarkContent(
     onDeleteClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     onRemoveLastFolder: () -> Unit = {},
-    priorityTags: List<TagPrioritised> = emptyList(),
-    selectedPriorityTags: List<TagPrioritised> = emptyList(),
-    onPriorityTagToggled: (TagPrioritised) -> Unit = {},
-    selectedFolderTags: List<String> = emptyList(),
-    onFolderTagToggled: (String) -> Unit = {},
+    priorityTags: List<TagUiState> = emptyList(),
+    onPriorityTagToggled: (TagUiState) -> Unit = {},
+    onFolderTagToggled: (TagGroup, TagUiState) -> Unit = { _, _ -> },
     groupedFolderTags: List<TagGroup> = emptyList(),
 ) {
     val focusManager = LocalFocusManager.current
@@ -261,11 +257,11 @@ private fun AddEditBookmarkContent(
         // Priority tags selector
         if (priorityTags.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
-            PriorityTagSelector(
-                priorityTags = priorityTags,
-                selectedPriorityTags = selectedPriorityTags,
-                onPriorityTagToggled = onPriorityTagToggled,
-                modifier = Modifier.fillMaxWidth()
+            TagSection(
+                tags = priorityTags,
+                onTagToggled = onPriorityTagToggled,
+                modifier = Modifier.fillMaxWidth(),
+                sectionTitle = "Priority Tags:"
             )
         }
 
@@ -273,7 +269,6 @@ private fun AddEditBookmarkContent(
         if (groupedFolderTags.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
             FolderTagSelector(
-                selectedFolderTags = selectedFolderTags,
                 onFolderTagToggled = onFolderTagToggled,
                 groupedFolderTags = groupedFolderTags,
                 modifier = Modifier.fillMaxWidth()
@@ -382,16 +377,17 @@ private fun FolderBadgeSelector(
 }
 
 @Composable
-private fun PriorityTagSelector(
-    priorityTags: List<TagPrioritised>,
-    selectedPriorityTags: List<TagPrioritised>,
-    onPriorityTagToggled: (TagPrioritised) -> Unit,
-    modifier: Modifier = Modifier
+private fun TagSection(
+    tags: List<TagUiState>,
+    onTagToggled: (TagUiState) -> Unit,
+    modifier: Modifier = Modifier,
+    sectionTitle: String,
+    titleStyle: TextStyle = MaterialTheme.typography.bodyLarge,
 ) {
     Column(modifier = modifier) {
         Text(
-            text = "Priority Tags:",
-            style = MaterialTheme.typography.bodyLarge,
+            text = sectionTitle,
+            style = titleStyle,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -403,13 +399,12 @@ private fun PriorityTagSelector(
                 .horizontalScroll(rememberScrollState())
                 .padding(bottom = 8.dp)
         ) {
-            priorityTags.sortedByDescending { it.count }.forEach { tag ->
-                val isSelected = selectedPriorityTags.any { it.tag == tag.tag }
+            tags.forEach { tag ->
                 FilterChip(
-                    selected = isSelected,
-                    onClick = { onPriorityTagToggled(tag) },
+                    selected = tag.isSelected,
+                    onClick = { onTagToggled(tag) },
                     label = { 
-                        Text("${tag.tag} (${tag.count})") 
+                        Text(tag.label ?: tag.tag)
                     },
                     modifier = Modifier.padding(end = 8.dp)
                 )
@@ -420,8 +415,7 @@ private fun PriorityTagSelector(
 
 @Composable
 private fun FolderTagSelector(
-    selectedFolderTags: List<String>,
-    onFolderTagToggled: (String) -> Unit,
+    onFolderTagToggled: (TagGroup, TagUiState) -> Unit,
     modifier: Modifier = Modifier,
     groupedFolderTags: List<TagGroup> = emptyList()
 ) {
@@ -434,33 +428,13 @@ private fun FolderTagSelector(
         Spacer(modifier = Modifier.height(8.dp))
 
         groupedFolderTags.forEach { group ->
-            // Section header
-            Text(
-                text = group.prefix,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+            TagSection(
+                tags = group.tags,
+                onTagToggled = { onFolderTagToggled(group, it) },
+                modifier = Modifier.fillMaxWidth(),
+                sectionTitle = group.prefix,
+                titleStyle = MaterialTheme.typography.bodyMedium
             )
-
-            // Tags in this section
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(bottom = 8.dp)
-            ) {
-                group.tags.sorted().forEach { tag ->
-                    val isSelected = selectedFolderTags.contains(tag)
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { onFolderTagToggled(tag) },
-                        label = {
-                            Text(tag)
-                        },
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                }
-            }
         }
 
     }
