@@ -120,7 +120,8 @@ class FolderRepositoryRoom @Inject constructor(
             id = folder.id,
             tag = folder.tag,
             children = children,
-            rootFolder = folder.parent == null
+            rootFolder = folder.parent == null,
+            tagGroups = folder.tagGroups
         )
     }
 }

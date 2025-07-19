@@ -1,5 +1,6 @@
 package org.hahn.maakmai.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.util.UUID
@@ -9,5 +10,7 @@ data class Folder(
     @PrimaryKey
     val id: UUID,
     val tag: String,
-    val parent: UUID?
+    val parent: UUID?,
+    @ColumnInfo(defaultValue = "")
+    val tagGroups: List<String> = emptyList()
 )

@@ -22,10 +22,11 @@ class FolderRepositoryMemory @Inject constructor() : FolderRepository {
                 id = UUID.randomUUID(),
                 tag = "crochet",
                 children = listOf(
-                    TagFolder(id = UUID.randomUUID(), tag = "mittens", children = listOf()),
-                    TagFolder(id = UUID.randomUUID(), tag = "scarf", children = listOf())
+                    TagFolder(id = UUID.randomUUID(), tag = "mittens", children = listOf(), tagGroups = listOf("winter", "accessories")),
+                    TagFolder(id = UUID.randomUUID(), tag = "scarf", children = listOf(), tagGroups = listOf("winter", "accessories"))
                 ),
-                rootFolder = true
+                rootFolder = true,
+                tagGroups = listOf("craft", "hobby")
             )
         )
         createTagFolder(
@@ -33,10 +34,11 @@ class FolderRepositoryMemory @Inject constructor() : FolderRepository {
                 id = UUID.randomUUID(),
                 tag = "knitting",
                 children = listOf(
-                    TagFolder(id = UUID.randomUUID(), tag = "mittens", children = listOf()),
-                    TagFolder(id = UUID.randomUUID(), tag = "sweater", children = listOf())
+                    TagFolder(id = UUID.randomUUID(), tag = "mittens", children = listOf(), tagGroups = listOf("winter", "accessories")),
+                    TagFolder(id = UUID.randomUUID(), tag = "sweater", children = listOf(), tagGroups = listOf("winter", "clothing"))
                 ),
-                rootFolder = true
+                rootFolder = true,
+                tagGroups = listOf("craft", "hobby")
             )
         )
     }
@@ -61,7 +63,8 @@ class FolderRepositoryMemory @Inject constructor() : FolderRepository {
             id = folder.id,
             tag = folder.tag,
             children = children,
-            rootFolder = folder.parent == null
+            rootFolder = folder.parent == null,
+            tagGroups = folder.tagGroups
         )
     }
 
@@ -85,7 +88,8 @@ class FolderRepositoryMemory @Inject constructor() : FolderRepository {
         val newFolder = Folder(
             id = folder.id,
             tag = folder.tag,
-            parent = parentId
+            parent = parentId,
+            tagGroups = folder.tagGroups
         )
 
         // Create the folder and all its children
