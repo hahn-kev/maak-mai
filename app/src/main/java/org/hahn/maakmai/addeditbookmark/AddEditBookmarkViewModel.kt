@@ -73,6 +73,25 @@ class AddEditBookmarkViewModel @Inject constructor(
         }
     }
 
+    fun updateDescription(newDescription: String) {
+        _uiState.update {
+            it.copy(description = newDescription)
+        }
+    }
+
+    fun updateUrl(newUrl: String?) {
+        _uiState.update {
+            it.copy(url = newUrl)
+        }
+    }
+
+    fun updateTags(newTags: List<String>) {
+        _uiState.update {
+            it.copy(tags = newTags)
+        }
+    }
+
+
     fun saveBookmark() {
         viewModelScope.launch {
             val bookmark = Bookmark(bookmarkId ?: UUID.randomUUID(), uiState.value.title, uiState.value.description, uiState.value.url, uiState.value.tags)

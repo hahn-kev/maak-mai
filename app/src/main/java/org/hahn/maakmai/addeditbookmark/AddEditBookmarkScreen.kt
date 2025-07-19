@@ -23,11 +23,21 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.hahn.maakmai.R
 
 @Composable
 fun AddEditBookmarkScreen(
@@ -49,7 +59,13 @@ fun AddEditBookmarkScreen(
         val uiState by viewModel.uiState.collectAsStateWithLifecycle()
         AddEditBookmarkContent(
             title = uiState.title,
+            description = uiState.description,
+            url = uiState.url,
+            tags = uiState.tags,
             onTitleChanged = viewModel::updateTitle,
+            onDescriptionChanged = viewModel::updateDescription,
+            onUrlChanged = viewModel::updateUrl,
+            onTagsChanged = viewModel::updateTags,
             modifier = Modifier.padding(paddingValues)
         )
 
@@ -64,43 +80,97 @@ fun AddEditBookmarkScreen(
 @Composable
 private fun AddEditBookmarkContent(
     title: String,
+    description: String,
+    url: String?,
+    tags: List<String>,
     onTitleChanged: (String) -> Unit = {},
+    onDescriptionChanged: (String) -> Unit = {},
+    onUrlChanged: (String?) -> Unit = {},
+    onTagsChanged: (List<String>) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val focusManager = LocalFocusManager.current
+
     Column(
         modifier
             .fillMaxWidth()
+            .padding(all = 16.dp)
             .verticalScroll(rememberScrollState())
     ) {
         val textFieldColors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Color.Transparent,
-            unfocusedBorderColor = Color.Transparent,
-            cursorColor = MaterialTheme.colorScheme.onSecondary
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
         )
         OutlinedTextField(
             value = title,
             modifier = Modifier.fillMaxWidth(),
             onValueChange = onTitleChanged,
-            placeholder = {
-                Text(
-                    text = "Title",
-                    style = MaterialTheme.typography.headlineSmall
-                )
-            },
+            label = { Text(text = "Title") },
             textStyle = MaterialTheme.typography.headlineSmall
                 .copy(fontWeight = FontWeight.Bold),
             maxLines = 1,
-            colors = textFieldColors
+            colors = textFieldColors,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            keyboardActions = KeyboardActions(
+                onNext = { focusManager.moveFocus(FocusDirection.Down) }
+            )
         )
-//        OutlinedTextField(
-//            value = description,
-//            onValueChange = onDescriptionChanged,
-//            placeholder = { Text(stringResource(id = R.string.description_hint)) },
-//            modifier = Modifier
-//                .height(350.dp)
-//                .fillMaxWidth(),
-//            colors = textFieldColors
-//        )
+
+        OutlinedTextField(
+            value = description,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            onValueChange = onDescriptionChanged,
+            label = { Text(text = "Description") },
+            textStyle = MaterialTheme.typography.bodyLarge,
+            minLines = 3,
+            colors = textFieldColors,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            keyboardActions = KeyboardActions(
+                onNext = { focusManager.moveFocus(FocusDirection.Down) }
+            )
+        )
+
+        OutlinedTextField(
+            value = url ?: "",
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            onValueChange = { onUrlChanged(it.ifEmpty { null }) },
+            label = { Text(text = "URL") },
+            textStyle = MaterialTheme.typography.bodyLarge,
+            maxLines = 1,
+            colors = textFieldColors,
+            keyboardOptions = KeyboardOptions(
+                imeAction = ImeAction.Next,
+                keyboardType = KeyboardType.Uri
+            ),
+            keyboardActions = KeyboardActions(
+                onNext = { focusManager.moveFocus(FocusDirection.Down) }
+            )
+        )
+
+        // Simple tags implementation - comma-separated string
+        val tagsString = tags.joinToString(", ")
+        OutlinedTextField(
+            value = tagsString,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            onValueChange = { newTagsString ->
+                val newTags = newTagsString.split(",")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                onTagsChanged(newTags)
+            },
+            label = { Text(text = "Tags (comma-separated)") },
+            textStyle = MaterialTheme.typography.bodyLarge,
+            colors = textFieldColors,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(
+                onDone = { focusManager.clearFocus() }
+            )
+        )
     }
 }
 
@@ -110,9 +180,11 @@ private fun AddEditBookmarkContentPreview() {
     MaterialTheme {
         Surface {
             AddEditBookmarkContent(
-                title = "",
+                title = "Awesome sweater",
+                description = "This is a very nice sweater",
+                url = "https://example.com/sweater",
+                tags = listOf("clothing", "winter", "wool"),
             )
-
         }
     }
 }
