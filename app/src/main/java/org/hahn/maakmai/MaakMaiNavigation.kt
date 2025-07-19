@@ -13,12 +13,12 @@ object MaakMaiArgs {
 }
 
 object MaakMaiDestinations {
-    const val BROWSE_ROUTE = "$BROWSE_SCREEN/{$PATH_ARG}";
+    const val BROWSE_ROUTE = "$BROWSE_SCREEN?$PATH_ARG={$PATH_ARG}";
 }
 
 class MaakMaiNavigationActions(private val navController: NavController) {
     fun navigateToBrowse(path: String = "") {
-        navController.navigate("$BROWSE_SCREEN/$path");
+        navController.navigate("$BROWSE_SCREEN?$PATH_ARG=$path");
     }
 
 }

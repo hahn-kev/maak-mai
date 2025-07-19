@@ -5,7 +5,10 @@ import java.util.stream.Stream
 
 data class TagFolder(val id: UUID, val tag: String, val children: List<TagFolder>, val rootFolder: Boolean = false) {
     fun findFolder(path: String): TagFolder?{
-        return findFolderInternal(path.split("/"))
+        if (path == "/") {
+            return this
+        }
+        return findFolderInternal(path.split("/").filter { f -> f.isNotEmpty() })
     }
 
     private fun findFolderInternal(pathParts: List<String>, startIndex: Int = 0): TagFolder? {

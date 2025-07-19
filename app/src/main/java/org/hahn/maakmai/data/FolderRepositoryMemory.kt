@@ -6,13 +6,40 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import org.hahn.maakmai.model.TagFolder
 import java.util.UUID
+import javax.inject.Inject
 
-class FolderRepositoryMemory : FolderRepository {
+class FolderRepositoryMemory @Inject constructor() : FolderRepository {
+
     // In-memory storage for folders
     private val folders = mutableMapOf<UUID, Folder>()
 
     // StateFlow to emit updates when folders change
     private val _foldersFlow = MutableStateFlow<List<TagFolder>>(emptyList())
+
+    init {
+        createTagFolder(
+            TagFolder(
+                id = UUID.randomUUID(),
+                tag = "crochet",
+                children = listOf(
+                    TagFolder(id = UUID.randomUUID(), tag = "mittens", children = listOf()),
+                    TagFolder(id = UUID.randomUUID(), tag = "scarf", children = listOf())
+                ),
+                rootFolder = true
+            )
+        )
+        createTagFolder(
+            TagFolder(
+                id = UUID.randomUUID(),
+                tag = "knitting",
+                children = listOf(
+                    TagFolder(id = UUID.randomUUID(), tag = "mittens", children = listOf()),
+                    TagFolder(id = UUID.randomUUID(), tag = "sweater", children = listOf())
+                ),
+                rootFolder = true
+            )
+        )
+    }
 
     // Helper function to convert folders to TagFolders
     private fun buildTagFolders(): List<TagFolder> {
@@ -51,6 +78,24 @@ class FolderRepositoryMemory : FolderRepository {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    fun createTagFolder(folder: TagFolder, parentId: UUID? = null) {
+        // Convert TagFolder to Folder
+        val newFolder = Folder(
+            id = folder.id,
+            tag = folder.tag,
+            parent = parentId
+        )
+
+        // Create the folder and all its children
+        folders[newFolder.id] = newFolder
+        folder.children.forEach { child ->
+            createTagFolder(child, newFolder.id)
+        }
+
+        // Update the flow
+        updateFoldersFlow()
     }
 
     override suspend fun getFolderByTag(tag: String): Result<Folder> {

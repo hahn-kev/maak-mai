@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import org.hahn.maakmai.MaakMaiArgs.PATH_ARG
@@ -43,23 +44,21 @@ class BrowseViewModel @Inject constructor(
     private val currentPath: String = savedStateHandle[PATH_ARG]!!
     private val _showAll = savedStateHandle.getStateFlow(SHOW_ALL_SAVED_STATE_KEY, false)
     private val _bookmarks = bookmarkRepository.getBookmarksStream()
-    private val _tagFolders = folderRepository.getFoldersStream()
+    private val _rootFolder = folderRepository.getFoldersStream().map { folders -> TagFolder(tag = "root", children = folders, id = UUID.randomUUID()) }.distinctUntilChanged()
 
     private val _tags = currentPath.split("/").filter { f -> f.isNotEmpty() }.toHashSet()
-    private val _currentFolder = _tagFolders.map { folders ->
-        getCurrentFolder(currentPath, folders)
-    }
-    private val _visibleFolders = combine(_currentFolder, _tagFolders) { currentFolder, folders -> currentFolder?.children ?: folders }
-    private val _visibleBookmarks = combine(_bookmarks, _currentFolder, _showAll, _visibleFolders)
-    { bookmarks, currentFolder, showAll, visibleFolders ->
+    private val _currentFolder = _rootFolder.map { root -> root.findFolder(currentPath) ?: root }.distinctUntilChanged()
+    private val _visibleFolders = _currentFolder.map { folder -> folder.children }
+    private val _visibleBookmarks = combine(_bookmarks, _currentFolder, _showAll)
+    { bookmarks, currentFolder, showAll ->
         getVisibleBookmarks(
             _tags, if (!showAll) {
-                currentFolder ?: TagFolder(tag = "root", children = visibleFolders, id = UUID.randomUUID())
+                currentFolder
             } else {
                 null
             }, bookmarks
         )
-    }
+    }.distinctUntilChanged()
     private val _isLoading = MutableStateFlow(false)
 
     val uiState: StateFlow<BrowseUiState> = combine(_isLoading, _visibleFolders, _visibleBookmarks, _showAll)
