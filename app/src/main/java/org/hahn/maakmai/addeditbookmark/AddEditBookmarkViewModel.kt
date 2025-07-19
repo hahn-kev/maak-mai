@@ -31,8 +31,12 @@ data class AddEditBookmarkUiState(
     val isBookmarkDeleted: Boolean = false,
     val isNew: Boolean = true,
     val selectedFolderPath: List<TagFolder> = listOf(),
-    val folders: List<TagFolder> = listOf()
+    val folders: List<TagFolder> = listOf(),
+    val tagsPrioritised: List<TagPrioritised> = listOf(),
+    val selectedPriorityTags: List<TagPrioritised> = listOf()
 )
+
+data class TagPrioritised(val tag: String, val count: Int)
 
 @HiltViewModel
 class AddEditBookmarkViewModel @Inject constructor(
@@ -60,6 +64,14 @@ class AddEditBookmarkViewModel @Inject constructor(
         } else {
             // Handle shared URL if available
             processSharedContent()
+        }
+        viewModelScope.launch {
+            val tags = bookmarkRepository.getTagsWithCount().map { tagsWithCount ->
+                TagPrioritised(tagsWithCount.key, tagsWithCount.value)
+            }
+            _uiState.update {
+                it.copy(tagsPrioritised = tags)
+            }
         }
         viewModelScope.launch {
             folderRepository.getFoldersStream().collectLatest { folders ->
@@ -244,13 +256,15 @@ class AddEditBookmarkViewModel @Inject constructor(
         viewModelScope.launch {
 
             val folderTags = uiState.value.selectedFolderPath.map { it.tag }
+            val priorityTags = uiState.value.selectedPriorityTags.map {it.tag}
             val bookmark =
                 Bookmark(
                     bookmarkId ?: UUID.randomUUID(),
                     uiState.value.title,
                     uiState.value.description,
                     uiState.value.url,
-                    uiState.value.tags.filter { it.isNotBlank() } + folderTags)
+                    (uiState.value.tags.filter { it.isNotBlank() } + folderTags + priorityTags).distinct()
+                )
             if (bookmarkId == null) {
                 bookmarkRepository.createBookmark(bookmark)
             } else {
@@ -275,6 +289,25 @@ class AddEditBookmarkViewModel @Inject constructor(
                 it.copy(
                     isBookmarkDeleted = true
                 )
+            }
+        }
+    }
+
+    /**
+     * Toggles a priority tag selection
+     * @param tag The priority tag to toggle
+     */
+    fun togglePriorityTag(tag: TagPrioritised) {
+        val currentSelectedTags = _uiState.value.selectedPriorityTags
+        val isSelected = currentSelectedTags.any { it.tag == tag.tag }
+
+        _uiState.update {
+            if (isSelected) {
+                // If already selected, remove it
+                it.copy(selectedPriorityTags = currentSelectedTags.filter { t -> t.tag != tag.tag })
+            } else {
+                // If not selected, add it
+                it.copy(selectedPriorityTags = currentSelectedTags + tag)
             }
         }
     }

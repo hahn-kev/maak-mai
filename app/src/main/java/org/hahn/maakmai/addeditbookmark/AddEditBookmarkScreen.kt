@@ -51,6 +51,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.hahn.maakmai.addeditbookmark.TagPrioritised
 import org.hahn.maakmai.model.TagFolder
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,6 +104,9 @@ fun AddEditBookmarkScreen(
             onFolderSelected = viewModel::selectFolder,
             onClearFolders = viewModel::clearSelectedFolders,
             onRemoveLastFolder = viewModel::removeLastSelectedFolder,
+            priorityTags = uiState.tagsPrioritised,
+            selectedPriorityTags = uiState.selectedPriorityTags,
+            onPriorityTagToggled = viewModel::togglePriorityTag,
             onDeleteClick = { showDeleteConfirmation = true },
             modifier = Modifier.padding(paddingValues)
         )
@@ -163,6 +167,9 @@ private fun AddEditBookmarkContent(
     onDeleteClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     onRemoveLastFolder: () -> Unit = {},
+    priorityTags: List<TagPrioritised> = emptyList(),
+    selectedPriorityTags: List<TagPrioritised> = emptyList(),
+    onPriorityTagToggled: (TagPrioritised) -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -240,6 +247,17 @@ private fun AddEditBookmarkContent(
                 selectedFolderPath = selectedFolderPath,
                 onFolderSelected = onFolderSelected,
                 onBackClicked = onRemoveLastFolder,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        // Priority tags selector
+        if (priorityTags.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            PriorityTagSelector(
+                priorityTags = priorityTags,
+                selectedPriorityTags = selectedPriorityTags,
+                onPriorityTagToggled = onPriorityTagToggled,
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -338,6 +356,43 @@ private fun FolderBadgeSelector(
                     selected = selectedFolderPath.any { it.id == folder.id },
                     onClick = { onFolderSelected(folder) },
                     label = { Text(folder.tag) },
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PriorityTagSelector(
+    priorityTags: List<TagPrioritised>,
+    selectedPriorityTags: List<TagPrioritised>,
+    onPriorityTagToggled: (TagPrioritised) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = "Priority Tags:",
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Show priority tags
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(bottom = 8.dp)
+        ) {
+            priorityTags.sortedByDescending { it.count }.forEach { tag ->
+                val isSelected = selectedPriorityTags.any { it.tag == tag.tag }
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onPriorityTagToggled(tag) },
+                    label = { 
+                        Text("${tag.tag} (${tag.count})") 
+                    },
                     modifier = Modifier.padding(end = 8.dp)
                 )
             }
