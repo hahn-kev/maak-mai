@@ -1,5 +1,6 @@
 package org.hahn.maakmai.addeditbookmark
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,6 +14,11 @@ import org.hahn.maakmai.data.BookmarkRepository
 import org.hahn.maakmai.model.Bookmark
 import java.util.UUID
 import javax.inject.Inject
+import androidx.core.net.toUri
+import timber.log.Timber
+import java.net.URLDecoder
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 data class AddEditBookmarkUiState(
     val title: String = "",
@@ -32,6 +38,9 @@ class AddEditBookmarkViewModel @Inject constructor(
 ) : ViewModel() {
     private val bookmarkId: UUID? = savedStateHandle.get<String?>(MaakMaiArgs.BOOKMARK_ID_ARG).let { id -> if (id.isNullOrBlank()) null else UUID.fromString(id) }
     private val path: String? = savedStateHandle[MaakMaiArgs.PATH_ARG]
+    private val sharedUrl: String? = savedStateHandle.get<String?>(MaakMaiArgs.URL_ARG)?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
+    private val sharedTitle: String? = savedStateHandle.get<String?>(MaakMaiArgs.BOOKMARK_TITLE_ARG)?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
+    private val sharedSubject: String? = savedStateHandle.get<String?>(MaakMaiArgs.SUBJECT_ARG)?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
 
     private val _uiState = MutableStateFlow(AddEditBookmarkUiState(
         tags = path?.split("/")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList(),
@@ -42,6 +51,85 @@ class AddEditBookmarkViewModel @Inject constructor(
     init {
         if (bookmarkId != null) {
             loadBookmark(bookmarkId)
+        } else {
+            // Handle shared URL if available
+            processSharedContent()
+        }
+    }
+
+    private fun processSharedContent() {
+        if (sharedUrl != null) {
+            // If we have a URL, use it and extract a title if needed
+            val title = sharedTitle ?: extractTitleFromUrl(sharedUrl)
+            val description = sharedSubject ?: ""
+            _uiState.update {
+                it.copy(
+                    title = title,
+                    description = description,
+                    url = sharedUrl
+                )
+            }
+        } else if (sharedTitle != null) {
+            // If we have a title but no URL, use it as the title
+            _uiState.update {
+                it.copy(
+                    title = sharedTitle,
+                    description = sharedSubject ?: ""
+                )
+            }
+        }
+    }
+
+    private fun extractLastPathSegment(uri: Uri): String? {
+        return try {
+            val path = uri.path ?: return null
+            path.split("/").last().takeIf { it.isNotEmpty() }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun isAllNumbers(str: String): Boolean {
+        return str.all { it.isDigit() || it == '.' || it == ',' }
+    }
+
+    private fun cleanupTitle(title: String): String {
+        return title
+            .replace("[_-]".toRegex(), " ")
+            .replace("\\s+".toRegex(), " ")
+            .split(" ")
+            .joinToString(" ") { word ->
+                word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+            }
+            .trim()
+    }
+
+    private fun extractTitleFromUrl(url: String): String {
+        try {
+            val uri = url.toUri()
+
+            // Try last path segment first
+            extractLastPathSegment(uri)?.let { segment ->
+                if (!isAllNumbers(segment)) {
+                    return cleanupTitle(segment)
+                }
+            }
+
+            // Try hostname without TLD
+            uri.host?.let { host ->
+                val parts = host.split(".")
+                if (parts.size >= 2) {
+                    val domain = parts[parts.size - 2]
+                    if (!isAllNumbers(domain)) {
+                        return cleanupTitle(domain)
+                    }
+                }
+            }
+
+            // Fallback to full hostname
+            return uri.host ?: url
+        } catch (e: Exception) {
+            return url
         }
     }
 

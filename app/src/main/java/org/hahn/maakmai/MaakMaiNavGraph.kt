@@ -15,10 +15,13 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.CoroutineScope
 import org.hahn.maakmai.MaakMaiArgs.BOOKMARK_ID_ARG
+import org.hahn.maakmai.MaakMaiArgs.BOOKMARK_TITLE_ARG
 import org.hahn.maakmai.MaakMaiArgs.FOLDER_ID_ARG
 import org.hahn.maakmai.MaakMaiArgs.PARENT_PATH_ARG
 import org.hahn.maakmai.MaakMaiArgs.PATH_ARG
+import org.hahn.maakmai.MaakMaiArgs.SUBJECT_ARG
 import org.hahn.maakmai.MaakMaiArgs.TITLE_ARG
+import org.hahn.maakmai.MaakMaiArgs.URL_ARG
 import org.hahn.maakmai.addeditbookmark.AddEditBookmarkScreen
 import org.hahn.maakmai.addeditfolder.AddEditFolderScreen
 import org.hahn.maakmai.browse.BrowseScreen
@@ -29,6 +32,7 @@ fun MaakMaiNavGraph(
     navController: NavHostController = rememberNavController(),
     coroutineScope: CoroutineScope = rememberCoroutineScope(),
     startDestination: String = MaakMaiDestinations.BROWSE_ROUTE,
+    onEditDone: (() -> Unit)? = null,
     navActions: MaakMaiNavigationActions = remember(navController) {
         MaakMaiNavigationActions(navController)
     }
@@ -48,7 +52,7 @@ fun MaakMaiNavGraph(
             BrowseScreen(
                 onFolderClick = { folder -> navActions.navigateToBrowse(folder.path) },
                 onBookmarkClick = { bookmark -> /* URL opening is now handled in BookmarkCard */ },
-                onAddBookmark = {navActions.navigateToAdd(currentPath)},
+                onAddBookmark = { navActions.navigateToAdd(currentPath) },
                 onEditBookmark = { bookmarkId ->
                     navActions.navigateToEdit(bookmarkId)
                 },
@@ -66,12 +70,28 @@ fun MaakMaiNavGraph(
                 navArgument(TITLE_ARG) { type = NavType.StringType; defaultValue = "Edit Bookmark" },
                 navArgument(BOOKMARK_ID_ARG) { type = NavType.StringType; nullable = true },
                 navArgument(PATH_ARG) { type = NavType.StringType; nullable = true },
-            )) { entry ->
+                navArgument(URL_ARG) { type = NavType.StringType; nullable = true },
+                navArgument(SUBJECT_ARG) { type = NavType.StringType; nullable = true },
+                navArgument(BOOKMARK_TITLE_ARG) { type = NavType.StringType; nullable = true },
+            )
+        ) { entry ->
             AddEditBookmarkScreen(
                 topBarTitle = entry.arguments?.getString(TITLE_ARG)!!,
-                onBookmarkUpdate = { navController.popBackStack() },
+                onBookmarkUpdate = {
+                    if (onEditDone != null) {
+                        onEditDone()
+                    } else {
+                        navController.popBackStack()
+                    }
+                },
                 onBookmarkDelete = { navController.popBackStack() },
-                onBack = { navController.popBackStack() }
+                onBack = {
+                    if (onEditDone != null) {
+                        onEditDone()
+                    } else {
+                        navController.popBackStack()
+                    }
+                }
             )
         }
 
@@ -80,7 +100,8 @@ fun MaakMaiNavGraph(
                 navArgument(TITLE_ARG) { type = NavType.StringType; defaultValue = "Edit Folder" },
                 navArgument(FOLDER_ID_ARG) { type = NavType.StringType; nullable = true },
                 navArgument(PARENT_PATH_ARG) { type = NavType.StringType; defaultValue = "/" },
-            )) { entry ->
+            )
+        ) { entry ->
             AddEditFolderScreen(
                 topBarTitle = entry.arguments?.getString(TITLE_ARG)!!,
                 onFolderUpdate = { navController.popBackStack() },
