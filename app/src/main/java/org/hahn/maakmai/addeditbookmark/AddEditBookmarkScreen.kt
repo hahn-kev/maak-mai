@@ -106,6 +106,11 @@ fun AddEditBookmarkScreen(
                         Icon(Icons.Default.Close, "Cancel")
                     }
                 },
+                actions = {
+                    IconButton(onClick = { showDeleteConfirmation = true }) {
+                        Icon(Icons.Default.Delete, "Delete Bookmark")
+                    }
+                },
                 modifier = Modifier.fillMaxWidth()
             )
         },
