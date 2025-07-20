@@ -444,8 +444,8 @@ private fun TagSection(
         // Show priority tags
         FlowRow(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 4.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             tags.forEach { tag ->
                 FilterChip(
@@ -453,8 +453,7 @@ private fun TagSection(
                     onClick = { onTagToggled(tag) },
                     label = {
                         Text(tag.label ?: tag.tag)
-                    },
-                    modifier = Modifier.padding(end = 8.dp, bottom = 2.dp)
+                    }
                 )
             }
         }
@@ -606,6 +605,38 @@ private fun AddEditBookmarkContentPreview() {
                 description = "This is a very nice sweater",
                 url = "https://example.com/sweater",
                 tags = listOf("clothing", "winter", "wool"),
+                priorityTags = listOf(
+                    TagUiState(
+                        tag = "clothing",
+                        label = "Clothing",
+                        isSelected = true
+                    ),
+                    TagUiState(
+                        tag = "winter",
+                        label = "Winter",
+                        isSelected = true
+                    ),
+                    TagUiState(
+                        tag = "clothing",
+                        label = "Clothing",
+                        isSelected = true
+                    ),
+                    TagUiState(
+                        tag = "winter",
+                        label = "Winter",
+                        isSelected = true
+                    ),
+                    TagUiState(
+                        tag = "clothing",
+                        label = "Clothing",
+                        isSelected = true
+                    ),
+                    TagUiState(
+                        tag = "winter",
+                        label = "Winter",
+                        isSelected = true
+                    )
+                )
             )
         }
     }
