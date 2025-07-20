@@ -292,17 +292,16 @@ fun BookmarkCard(bookmark: Bookmark, onOpen: (Bookmark) -> Unit = {}, onEdit: (B
             AsyncImage(
                 model = attachmentUri,
                 contentDescription = bookmark.description,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.size(180.dp),
-                fallback = painterResource(R.drawable.teddy) // Fallback to placeholder if loading fails
+                contentScale = ContentScale.FillWidth,
+                modifier = Modifier.fillMaxWidth()
             )
         } else {
             // Use the placeholder image if there's no attachment
             Image(
                 painter = painterResource(R.drawable.teddy),
                 contentDescription = bookmark.description,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.size(180.dp)
+                contentScale = ContentScale.FillWidth,
+                modifier = Modifier.size(180.dp).fillMaxWidth()
             )
         }
 
