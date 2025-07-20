@@ -1,5 +1,6 @@
 package org.hahn.maakmai.util
 
+import android.text.Html
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -87,10 +88,10 @@ object OpenGraphUtils {
         val url = extractMetaTag(html, "og:url")
         val image = extractMetaTag(html, "og:image")
         val siteName = extractMetaTag(html, "og:site_name")
-        
+
         // If no Open Graph title, try regular title tag
         val finalTitle = title ?: extractTitleTag(html)
-        
+
         return OpenGraphMetadata(
             title = finalTitle,
             description = description,
@@ -110,10 +111,21 @@ object OpenGraphUtils {
     private fun extractMetaTag(html: String, property: String): String? {
         val regex = Regex("<meta\\s+(?:property=[\"']$property[\"']\\s+content=[\"']([^\"']*)[\"']|content=[\"']([^\"']*)[\"']\\s+property=[\"']$property[\"'])", RegexOption.IGNORE_CASE)
         val matchResult = regex.find(html)
-        
+
         return matchResult?.let {
-            it.groupValues[1].ifEmpty { it.groupValues[2] }
+            val value = it.groupValues[1].ifEmpty { it.groupValues[2] }
+            decodeHtmlEntities(value)
         }
+    }
+
+    /**
+     * Decodes HTML entities in a string.
+     * 
+     * @param input The string containing HTML entities
+     * @return The decoded string
+     */
+    private fun decodeHtmlEntities(input: String): String {
+        return Html.fromHtml(input, Html.FROM_HTML_MODE_LEGACY).toString()
     }
 
     /**
@@ -125,7 +137,7 @@ object OpenGraphUtils {
     private fun extractTitleTag(html: String): String? {
         val regex = Regex("<title>([^<]*)</title>", RegexOption.IGNORE_CASE)
         val matchResult = regex.find(html)
-        
-        return matchResult?.groupValues?.get(1)?.trim()
+
+        return matchResult?.groupValues?.get(1)?.trim()?.let { decodeHtmlEntities(it) }
     }
 }
