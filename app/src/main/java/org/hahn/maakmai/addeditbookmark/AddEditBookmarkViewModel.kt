@@ -250,7 +250,7 @@ class AddEditBookmarkViewModel @Inject constructor(
         val allTags = _uiState.value.tagsPrioritised.map { it.tag }
         val folderTags = if (currentPath.isNotEmpty()) {
             // Get tag groups from the last selected folder
-            currentPath.last().tagGroups.sorted()
+            currentPath.asReversed().flatMap { it.tagGroups.sorted() }
         } else {
             emptyList()
         }
