@@ -17,6 +17,7 @@ import org.hahn.maakmai.data.BookmarkRepository
 import org.hahn.maakmai.data.FolderRepository
 import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
+import org.hahn.maakmai.util.OpenGraphUtils
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -92,14 +93,19 @@ class AddEditBookmarkViewModel @Inject constructor(
     private fun processSharedContent() {
         if (sharedUrl != null) {
             // If we have a URL, use it and extract a title if needed
-            val title = sharedTitle ?: extractTitleFromUrl(sharedUrl)
-            val description = sharedSubject ?: ""
-            _uiState.update {
-                it.copy(
-                    title = title,
-                    description = description,
-                    url = sharedUrl
-                )
+            viewModelScope.launch {
+                // First try to get title from Open Graph metadata
+                val openGraph = OpenGraphUtils.extractUrlOpenGraphMetadata(sharedUrl)
+                val title = openGraph.title ?: sharedTitle ?: extractTitleFromUrl(sharedUrl)
+                var description =  openGraph.description ?: sharedSubject ?: ""
+                if (title == description) description = ""
+                _uiState.update {
+                    it.copy(
+                        title = title,
+                        description = description,
+                        url = sharedUrl
+                    )
+                }
             }
         } else if (sharedTitle != null) {
             // If we have a title but no URL, use it as the title
@@ -138,6 +144,7 @@ class AddEditBookmarkViewModel @Inject constructor(
 
     private fun extractTitleFromUrl(url: String): String {
         try {
+            // Fall back to extracting from URL structure if Open Graph failed
             val uri = url.toUri()
 
             // Try last path segment first
