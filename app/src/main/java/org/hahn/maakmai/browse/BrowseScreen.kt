@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import coil3.compose.AsyncImage
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
@@ -282,12 +283,29 @@ fun BookmarkCard(bookmark: Bookmark, onOpen: (Bookmark) -> Unit = {}, onEdit: (B
                 onLongClick = { onEdit(bookmark) }
             )
     ) {
-        Image(
-            painter = painterResource(R.drawable.teddy),
-            contentDescription = bookmark.description,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.size(180.dp)
-        )
+        // Check if the bookmark has an attachment image
+        if (bookmark.imageAttachmentId != null) {
+            // Construct the URI for the attachment
+            val attachmentUri = Uri.parse("content://org.hahn.maakmai.attachment/${bookmark.imageAttachmentId}")
+
+            // Use AsyncImage to load the image from the URI
+            AsyncImage(
+                model = attachmentUri,
+                contentDescription = bookmark.description,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(180.dp),
+                fallback = painterResource(R.drawable.teddy) // Fallback to placeholder if loading fails
+            )
+        } else {
+            // Use the placeholder image if there's no attachment
+            Image(
+                painter = painterResource(R.drawable.teddy),
+                contentDescription = bookmark.description,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(180.dp)
+            )
+        }
+
         Text(
             text = bookmark.title,
             style = MaterialTheme.typography.titleMedium,
