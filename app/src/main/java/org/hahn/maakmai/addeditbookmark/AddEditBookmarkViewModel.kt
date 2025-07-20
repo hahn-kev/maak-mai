@@ -40,7 +40,8 @@ data class AddEditBookmarkUiState(
     val selectedFolderPath: List<TagFolder> = listOf(),
     val folders: List<TagFolder> = listOf(),
     val tagsPrioritised: List<TagUiState> = listOf(),
-    val groupedFolderTags: List<TagGroup> = listOf()
+    val groupedFolderTags: List<TagGroup> = listOf(),
+    val selectedImageUri: String? = null
 )
 
 data class TagUiState(val tag: String, val isSelected: Boolean = false, val label: String? = null)
@@ -103,7 +104,8 @@ class AddEditBookmarkViewModel @Inject constructor(
                     it.copy(
                         title = title,
                         description = description,
-                        url = sharedUrl
+                        url = sharedUrl,
+                        selectedImageUri = openGraph.image
                     )
                 }
             }
@@ -379,6 +381,16 @@ class AddEditBookmarkViewModel @Inject constructor(
             state.copy(
                 groupedFolderTags = state.groupedFolderTags.map { if (it.prefix == group.prefix) it.copy(tags = it.tags.map { if (it.tag == tag.tag) it.copy(isSelected = !isSelected) else it }) else it }
             )
+        }
+    }
+
+    /**
+     * Updates the selected image URI
+     * @param uri The URI of the selected image
+     */
+    fun updateSelectedImageUri(uri: String?) {
+        _uiState.update {
+            it.copy(selectedImageUri = uri)
         }
     }
 }

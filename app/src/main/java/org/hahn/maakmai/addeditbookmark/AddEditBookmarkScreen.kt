@@ -1,16 +1,27 @@
 package org.hahn.maakmai.addeditbookmark
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -41,6 +52,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import android.net.Uri
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -53,6 +75,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
+import coil3.compose.rememberAsyncImagePainter
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import org.hahn.maakmai.model.TagFolder
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -109,6 +136,8 @@ fun AddEditBookmarkScreen(
             onPriorityTagToggled = viewModel::togglePriorityTag,
             onFolderTagToggled = viewModel::toggleFolderTag,
             groupedFolderTags = uiState.groupedFolderTags,
+            selectedImageUri = uiState.selectedImageUri,
+            onImageSelected = viewModel::updateSelectedImageUri,
             onDeleteClick = { showDeleteConfirmation = true },
             modifier = Modifier.padding(paddingValues)
         )
@@ -173,6 +202,8 @@ private fun AddEditBookmarkContent(
     onPriorityTagToggled: (TagUiState) -> Unit = {},
     onFolderTagToggled: (TagGroup, TagUiState) -> Unit = { _, _ -> },
     groupedFolderTags: List<TagGroup> = emptyList(),
+    selectedImageUri: String? = null,
+    onImageSelected: (String?) -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -267,6 +298,14 @@ private fun AddEditBookmarkContent(
                 sectionTitle = "Priority Tags:"
             )
         }
+
+        // Image picker and preview
+        Spacer(modifier = Modifier.height(16.dp))
+        ImagePickerAndPreview(
+            selectedImageUri = selectedImageUri,
+            onImageSelected = onImageSelected,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         // Simple tags implementation - comma-separated string
         val tagsString = tags.joinToString(", ")
@@ -446,6 +485,114 @@ private fun FolderTagSelector(
             )
         }
 
+    }
+}
+
+@Composable
+private fun ImagePickerAndPreview(
+    selectedImageUri: String?,
+    onImageSelected: (String?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null)
+            onImageSelected(uri.toString())
+    }
+
+    Column(modifier = modifier) {
+        Text(
+            text = "Image",
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Image preview or placeholder
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+                .border(
+                    BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                    shape = RoundedCornerShape(8.dp)
+                )
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clickable { imagePicker.launch("image/*") },
+            contentAlignment = Alignment.Center
+        ) {
+            if (selectedImageUri != null) {
+                val painter = rememberAsyncImagePainter(
+                    ImageRequest.Builder(context)
+                        .data(selectedImageUri)
+                        .crossfade(true)
+                        .build()
+                )
+                val state by painter.state.collectAsState()
+                when (state) {
+                    is AsyncImagePainter.State.Loading,
+                    is AsyncImagePainter.State.Empty -> {
+                        CircularProgressIndicator()
+                    }
+
+                    is AsyncImagePainter.State.Success -> {
+                        Image(
+                            painter = painter,
+                            contentDescription = "Selected image",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit,
+                        )
+                    }
+                    is AsyncImagePainter.State.Error -> {
+                        // Display error message
+                        Text(
+                            text = "Error loading image",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+
+            } else {
+                // Display placeholder
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = "Add image",
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Tap to select an image",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        // Button to clear selected image
+        if (selectedImageUri != null) {
+            TextButton(
+                onClick = { onImageSelected(null) },
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Clear image",
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Clear image")
+            }
+        }
     }
 }
 
