@@ -1,11 +1,14 @@
 package org.hahn.maakmai.addeditbookmark
 
+import android.content.ContentResolver
+import android.content.Context
 import android.net.Uri
 import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -13,11 +16,14 @@ import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.hahn.maakmai.MaakMaiArgs
+import org.hahn.maakmai.data.AttachmentRepository
 import org.hahn.maakmai.data.BookmarkRepository
 import org.hahn.maakmai.data.FolderRepository
+import org.hahn.maakmai.model.Attachment
 import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
 import org.hahn.maakmai.util.OpenGraphUtils
+import java.io.ByteArrayOutputStream
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -50,7 +56,9 @@ data class TagUiState(val tag: String, val isSelected: Boolean = false, val labe
 class AddEditBookmarkViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val bookmarkRepository: BookmarkRepository,
-    private val folderRepository: FolderRepository
+    private val folderRepository: FolderRepository,
+    private val attachmentRepository: AttachmentRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
     private val bookmarkId: UUID? = savedStateHandle.get<String?>(MaakMaiArgs.BOOKMARK_ID_ARG).let { id -> if (id.isNullOrBlank()) null else UUID.fromString(id) }
     private val path: String? = savedStateHandle[MaakMaiArgs.PATH_ARG]
@@ -183,12 +191,24 @@ class AddEditBookmarkViewModel @Inject constructor(
         viewModelScope.launch {
             val bookmark = bookmarkRepository.getBookmark(bookmarkId)
             if (bookmark != null) {
+                // Load image attachment if it exists
+                var imageUri: String? = null
+                if (bookmark.imageAttachmentId != null) {
+                    try {
+                        // Create a content URI for the attachment
+                        imageUri = "content://org.hahn.maakmai.attachment/${bookmark.imageAttachmentId}"
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+
                 _uiState.update {
                     it.copy(
                         title = bookmark.title,
                         description = bookmark.description,
                         url = bookmark.url,
                         tags = bookmark.tags,
+                        selectedImageUri = imageUri,
                         isLoading = false
                     )
                 }
@@ -316,6 +336,55 @@ class AddEditBookmarkViewModel @Inject constructor(
 
     fun saveBookmark() {
         viewModelScope.launch {
+            // Process image attachment if present
+            var imageAttachmentId: UUID? = null
+
+            // Check if we're editing an existing bookmark
+            if (bookmarkId != null) {
+                // Get the existing bookmark to check for an existing image attachment
+                val existingBookmark = bookmarkRepository.getBookmark(bookmarkId)
+                val existingAttachmentId = existingBookmark?.imageAttachmentId
+
+                // If the URI has changed and there was an existing attachment, delete it
+                if (existingAttachmentId != null && 
+                    uiState.value.selectedImageUri != "content://org.hahn.maakmai.attachment/$existingAttachmentId") {
+                    try {
+                        attachmentRepository.delete(existingAttachmentId)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+
+                // If the URI hasn't changed and there was an existing attachment, keep using it
+                if (existingAttachmentId != null && 
+                    uiState.value.selectedImageUri == "content://org.hahn.maakmai.attachment/$existingAttachmentId") {
+                    imageAttachmentId = existingAttachmentId
+                }
+            }
+
+            // If we have a selected image URI and it's not already an attachment URI (or we need to create a new one)
+            if (uiState.value.selectedImageUri != null && imageAttachmentId == null && 
+                !uiState.value.selectedImageUri!!.startsWith("content://org.hahn.maakmai.attachment/")) {
+                try {
+                    val uri = Uri.parse(uiState.value.selectedImageUri)
+                    val imageData = uriToByteArray(uri)
+                    if (imageData != null) {
+                        // Create a new attachment with the image data
+                        val attachmentId = UUID.randomUUID()
+                        val attachment = Attachment(
+                            id = attachmentId,
+                            data = imageData,
+                            title = "Image for ${uiState.value.title}"
+                        )
+                        // Save the attachment
+                        attachmentRepository.create(attachment)
+                        imageAttachmentId = attachmentId
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    // Continue without the image if there's an error
+                }
+            }
 
             val folderTags = uiState.value.selectedFolderPath.map { it.tag }
             val priorityTags = uiState.value.tagsPrioritised.filter { it.isSelected }.map { it.tag }
@@ -328,7 +397,8 @@ class AddEditBookmarkViewModel @Inject constructor(
                     uiState.value.title,
                     uiState.value.description,
                     uiState.value.url,
-                    (uiState.value.tags.filter { it.isNotBlank() } + folderTags + priorityTags + selectedFolderTags).distinct()
+                    (uiState.value.tags.filter { it.isNotBlank() } + folderTags + priorityTags + selectedFolderTags).distinct(),
+                    imageAttachmentId
                 )
             if (bookmarkId == null) {
                 bookmarkRepository.createBookmark(bookmark)
@@ -391,6 +461,30 @@ class AddEditBookmarkViewModel @Inject constructor(
     fun updateSelectedImageUri(uri: String?) {
         _uiState.update {
             it.copy(selectedImageUri = uri)
+        }
+    }
+
+    /**
+     * Converts a URI to a ByteArray
+     * @param uri The URI to convert
+     * @return The ByteArray representation of the URI's content, or null if conversion fails
+     */
+    private fun uriToByteArray(uri: Uri): ByteArray? {
+        return try {
+            val contentResolver: ContentResolver = context.contentResolver
+            contentResolver.openInputStream(uri)?.use { inputStream ->
+                val buffer = ByteArrayOutputStream()
+                val bufferSize = 1024
+                val data = ByteArray(bufferSize)
+                var bytesRead: Int
+                while (inputStream.read(data, 0, bufferSize).also { bytesRead = it } != -1) {
+                    buffer.write(data, 0, bytesRead)
+                }
+                buffer.toByteArray()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 }
