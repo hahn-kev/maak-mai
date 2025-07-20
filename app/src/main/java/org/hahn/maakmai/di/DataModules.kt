@@ -8,11 +8,14 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import org.hahn.maakmai.data.AttachmentRepository
+import org.hahn.maakmai.data.AttachmentRepositoryRoom
 import org.hahn.maakmai.data.BookmarkRepository
 import org.hahn.maakmai.data.BookmarkRepositoryMemory
 import org.hahn.maakmai.data.BookmarkRepositoryRoom
 import org.hahn.maakmai.data.FolderRepository
 import org.hahn.maakmai.data.FolderRepositoryRoom
+import org.hahn.maakmai.data.source.local.AttachmentDao
 import org.hahn.maakmai.data.source.local.MaakMaiDatabase
 import javax.inject.Singleton
 
@@ -26,6 +29,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindFolderRepository(impl: FolderRepositoryRoom): FolderRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAttachmentRepository(impl: AttachmentRepositoryRoom): AttachmentRepository
 }
 
 
@@ -53,5 +60,10 @@ object DatabaseModule {
     fun provideFolderDao(
         database: MaakMaiDatabase,
     ) = database.folderDao()
+
+    @Provides
+    fun provideAttachmentDao(
+        database: MaakMaiDatabase,
+    ) = database.attachmentDao()
 
 }

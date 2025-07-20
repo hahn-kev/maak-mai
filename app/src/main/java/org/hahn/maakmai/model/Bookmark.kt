@@ -12,4 +12,5 @@ data class Bookmark(
     val description: String,
     val url: String?,
     val tags: List<String>,
+    val imageAttachmentId: UUID? = null
 )
