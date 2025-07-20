@@ -49,7 +49,7 @@ data class AddEditBookmarkUiState(
     val title: String = "",
     val description: String = "",
     val url: String? = null,
-    val tags: List<String> = listOf(),
+    val tags: String = "",
     val isLoading: Boolean = false,
     val isBookmarkSaved: Boolean = false,
     val isBookmarkDeleted: Boolean = false,
@@ -218,7 +218,7 @@ class AddEditBookmarkViewModel @Inject constructor(
                         title = bookmark.title,
                         description = bookmark.description,
                         url = bookmark.url,
-                        tags = bookmark.tags,
+                        tags = bookmark.tags.joinToString(", "),
                         selectedImageUri = imageUri,
                         isLoading = false
                     )
@@ -251,7 +251,7 @@ class AddEditBookmarkViewModel @Inject constructor(
         }
     }
 
-    fun updateTags(newTags: List<String>) {
+    fun updateTags(newTags: String) {
         _uiState.update {
             it.copy(tags = newTags)
         }
@@ -402,13 +402,14 @@ class AddEditBookmarkViewModel @Inject constructor(
             val selectedFolderTags = uiState.value.groupedFolderTags.map { group ->
                 group.tags.filter { it.isSelected }.map { it.tag }
             }.flatten()
+            val rawTags = uiState.value.tags.split(",").map {it.trim()} .filter { it.isNotBlank() }
             val bookmark =
                 Bookmark(
                     bookmarkId ?: UUID.randomUUID(),
                     uiState.value.title,
                     uiState.value.description,
                     uiState.value.url,
-                    (uiState.value.tags.filter { it.isNotBlank() } + folderTags + priorityTags + selectedFolderTags).distinct(),
+                    (rawTags + folderTags + priorityTags + selectedFolderTags).distinct(),
                     imageAttachmentId
                 )
             if (bookmarkId == null) {

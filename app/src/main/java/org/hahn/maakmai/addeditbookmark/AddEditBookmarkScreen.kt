@@ -94,6 +94,7 @@ fun AddEditBookmarkScreen(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
 ) {
     var showDeleteConfirmation by remember { mutableStateOf(false) }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -107,8 +108,10 @@ fun AddEditBookmarkScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showDeleteConfirmation = true }) {
-                        Icon(Icons.Default.Delete, "Delete Bookmark")
+                    if (!uiState.isNew) {
+                        IconButton(onClick = { showDeleteConfirmation = true }) {
+                            Icon(Icons.Default.Delete, "Delete Bookmark")
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
@@ -120,7 +123,6 @@ fun AddEditBookmarkScreen(
             }
         }
     ) { paddingValues ->
-        val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
         AddEditBookmarkContent(
             title = uiState.title,
@@ -190,11 +192,11 @@ private fun AddEditBookmarkContent(
     title: String,
     description: String,
     url: String?,
-    tags: List<String>,
+    tags: String,
     onTitleChanged: (String) -> Unit = {},
     onDescriptionChanged: (String) -> Unit = {},
     onUrlChanged: (String?) -> Unit = {},
-    onTagsChanged: (List<String>) -> Unit = {},
+    onTagsChanged: (String) -> Unit = {},
     folders: List<TagFolder> = emptyList(),
     selectedFolderPath: List<TagFolder> = emptyList(),
     onFolderSelected: (TagFolder) -> Unit = {},
@@ -313,15 +315,13 @@ private fun AddEditBookmarkContent(
         )
 
         // Simple tags implementation - comma-separated string
-        val tagsString = tags.joinToString(", ")
         OutlinedTextField(
-            value = tagsString,
+            value = tags,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 16.dp),
             onValueChange = { newTagsString ->
-                val newTags = newTagsString.split(",").map { it.trim() }
-                onTagsChanged(newTags)
+                onTagsChanged(newTagsString)
             },
             label = { Text(text = "Tags (comma-separated)") },
             textStyle = MaterialTheme.typography.bodyLarge,
@@ -609,7 +609,7 @@ private fun AddEditBookmarkContentPreview() {
                 title = "Awesome sweater",
                 description = "This is a very nice sweater",
                 url = "https://example.com/sweater",
-                tags = listOf("clothing", "winter", "wool"),
+                tags = "clothing, winter, wool",
                 priorityTags = listOf(
                     TagUiState(
                         tag = "clothing",
