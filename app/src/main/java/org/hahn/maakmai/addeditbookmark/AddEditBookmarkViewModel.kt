@@ -9,12 +9,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.hahn.maakmai.MaakMaiArgs
 import org.hahn.maakmai.data.AttachmentRepository
 import org.hahn.maakmai.data.BookmarkRepository
@@ -24,6 +26,8 @@ import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
 import org.hahn.maakmai.util.OpenGraphUtils
 import java.io.ByteArrayOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -469,18 +473,49 @@ class AddEditBookmarkViewModel @Inject constructor(
      * @param uri The URI to convert
      * @return The ByteArray representation of the URI's content, or null if conversion fails
      */
-    private fun uriToByteArray(uri: Uri): ByteArray? {
-        return try {
-            val contentResolver: ContentResolver = context.contentResolver
-            contentResolver.openInputStream(uri)?.use { inputStream ->
-                val buffer = ByteArrayOutputStream()
-                val bufferSize = 1024
-                val data = ByteArray(bufferSize)
-                var bytesRead: Int
-                while (inputStream.read(data, 0, bufferSize).also { bytesRead = it } != -1) {
-                    buffer.write(data, 0, bytesRead)
+    private suspend fun uriToByteArray(uri: Uri): ByteArray? = withContext(Dispatchers.IO) {
+        try {
+            // Check if the URI is a web URL (http/https)
+            if (uri.scheme == "http" || uri.scheme == "https") {
+                // Handle web URLs
+                val url = URL(uri.toString())
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    connectTimeout = 10000
+                    readTimeout = 10000
+                    requestMethod = "GET"
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (Android) MaakMai/1.0")
+                    instanceFollowRedirects = true
                 }
-                buffer.toByteArray()
+
+                val responseCode = connection.responseCode
+                if (responseCode != HttpURLConnection.HTTP_OK) {
+                    return@withContext null
+                }
+
+                connection.inputStream.use { inputStream ->
+                    val buffer = ByteArrayOutputStream()
+                    val bufferSize = 1024
+                    val data = ByteArray(bufferSize)
+                    var bytesRead: Int
+                    while (inputStream.read(data, 0, bufferSize).also { bytesRead = it } != -1) {
+                        buffer.write(data, 0, bytesRead)
+                    }
+                    buffer.toByteArray()
+                }
+            } else {
+                // Handle local file URIs using ContentResolver
+                val contentResolver: ContentResolver = context.contentResolver
+                contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val buffer = ByteArrayOutputStream()
+                    val bufferSize = 1024
+                    val data = ByteArray(bufferSize)
+                    var bytesRead: Int
+                    while (inputStream.read(data, 0, bufferSize).also { bytesRead = it } != -1) {
+                        buffer.write(data, 0, bytesRead)
+                    }
+                    buffer.toByteArray()
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
