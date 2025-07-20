@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.items
 import coil3.compose.AsyncImage
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -187,19 +190,20 @@ fun BrowseContent(
                     FolderCard(tagFolder.folder, { onFolderClick(tagFolder) })
                 }
             }
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(
+            LazyVerticalStaggeredGrid(
+                columns = StaggeredGridCells.Adaptive(
                     minSize = 180.dp
-                )
-            ) {
-                items(bookmarks) { bookmark ->
-                    BookmarkCard(
-                        bookmark = bookmark,
-                        onOpen = onBookmarkClick,
-                        onEdit = onBookmarkEdit
-                    )
+                ),
+                content = {
+                    items(bookmarks) { bookmark ->
+                        BookmarkCard(
+                            bookmark = bookmark,
+                            onOpen = onBookmarkClick,
+                            onEdit = onBookmarkEdit
+                        )
+                    }
                 }
-            }
+            )
         }
     }
 }
