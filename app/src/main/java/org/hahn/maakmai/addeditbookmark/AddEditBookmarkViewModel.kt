@@ -3,10 +3,19 @@ package org.hahn.maakmai.addeditbookmark
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil3.BitmapImage
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
+import coil3.request.allowRgb565
+import coil3.size.Precision
+import coil3.size.Scale
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -26,8 +35,6 @@ import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
 import org.hahn.maakmai.util.OpenGraphUtils
 import java.io.ByteArrayOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -469,53 +476,31 @@ class AddEditBookmarkViewModel @Inject constructor(
     }
 
     /**
-     * Converts a URI to a ByteArray
+     * Converts a URI to a ByteArray using Coil image loader
      * @param uri The URI to convert
      * @return The ByteArray representation of the URI's content, or null if conversion fails
      */
     private suspend fun uriToByteArray(uri: Uri): ByteArray? = withContext(Dispatchers.IO) {
         try {
-            // Check if the URI is a web URL (http/https)
-            if (uri.scheme == "http" || uri.scheme == "https") {
-                // Handle web URLs
-                val url = URL(uri.toString())
-                val connection = url.openConnection() as HttpURLConnection
-                connection.apply {
-                    connectTimeout = 10000
-                    readTimeout = 10000
-                    requestMethod = "GET"
-                    setRequestProperty("User-Agent", "Mozilla/5.0 (Android) MaakMai/1.0")
-                    instanceFollowRedirects = true
-                }
+            // Create an ImageLoader instance
+            val imageLoader = SingletonImageLoader.get(context)
 
-                val responseCode = connection.responseCode
-                if (responseCode != HttpURLConnection.HTTP_OK) {
-                    return@withContext null
-                }
+            // Create an ImageRequest
+            val request = ImageRequest.Builder(context)
+                .data(uri)
+                .build()
 
-                connection.inputStream.use { inputStream ->
-                    val buffer = ByteArrayOutputStream()
-                    val bufferSize = 1024
-                    val data = ByteArray(bufferSize)
-                    var bytesRead: Int
-                    while (inputStream.read(data, 0, bufferSize).also { bytesRead = it } != -1) {
-                        buffer.write(data, 0, bytesRead)
-                    }
-                    buffer.toByteArray()
-                }
+            // Execute the request and get the result
+            val result = imageLoader.execute(request)
+
+            // Convert the bitmap to ByteArray
+            val image = result.image
+            if (image is BitmapImage) {
+                val outputStream = ByteArrayOutputStream()
+                image.bitmap.compress(android.graphics.Bitmap.CompressFormat.WEBP_LOSSY, 90, outputStream)
+                outputStream.toByteArray()
             } else {
-                // Handle local file URIs using ContentResolver
-                val contentResolver: ContentResolver = context.contentResolver
-                contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val buffer = ByteArrayOutputStream()
-                    val bufferSize = 1024
-                    val data = ByteArray(bufferSize)
-                    var bytesRead: Int
-                    while (inputStream.read(data, 0, bufferSize).also { bytesRead = it } != -1) {
-                        buffer.write(data, 0, bytesRead)
-                    }
-                    buffer.toByteArray()
-                }
+                null
             }
         } catch (e: Exception) {
             e.printStackTrace()
