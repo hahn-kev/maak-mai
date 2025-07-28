@@ -347,11 +347,11 @@ fun FolderCard(folder: TagFolder, onOpen: (TagFolder) -> Unit = {}) {
             contentAlignment = Alignment.Center
         ) {
             // Optional: Display the first letter of the folder tag
-            Text(
-                text = folder.tag.take(1).uppercase(),
-                style = MaterialTheme.typography.headlineLarge,
-                color = Color.White
-            )
+//            Text(
+//                text = folder.tag.take(1).uppercase(),
+//                style = MaterialTheme.typography.headlineLarge,
+//                color = Color.White
+//            )
         }
         Text(
             text = folder.tag,
