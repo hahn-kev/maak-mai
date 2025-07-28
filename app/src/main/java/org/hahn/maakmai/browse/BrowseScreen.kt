@@ -69,7 +69,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -98,11 +100,13 @@ fun BrowseScreen(
 
     // State for search dialog
     var showSearchDialog by remember { mutableStateOf(false) }
-    var searchText by remember { mutableStateOf("") }
+    var searchText by remember { mutableStateOf(TextFieldValue(
+        text = ""
+    )) }
 
     // Function to handle search button click
     val onSearch = {
-        searchText = uiState.searchQuery // Initialize with current search query
+        searchText = TextFieldValue(uiState.searchQuery, selection = TextRange(0, uiState.searchQuery.length)) // Initialize with current search query
         showSearchDialog = true
     }
     Scaffold(
@@ -211,7 +215,7 @@ fun BrowseScreen(
         }
 
         val onSearchSubmit = {
-            viewModel.setSearchQuery(searchText)
+            viewModel.setSearchQuery(searchText.text)
             viewModel.setShowAll(true)
             showSearchDialog = false
         }
@@ -244,7 +248,7 @@ fun BrowseScreen(
                 Row {
                     TextButton(
                         onClick = {
-                            searchText = ""
+                            searchText = TextFieldValue()
                             viewModel.setSearchQuery("")
                             viewModel.setShowAll(false)
                             showSearchDialog = false
