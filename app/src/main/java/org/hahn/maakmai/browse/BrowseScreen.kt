@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -30,11 +31,15 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
@@ -42,11 +47,16 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -78,12 +88,22 @@ fun BrowseScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // State for search dialog
+    var showSearchDialog by remember { mutableStateOf(false) }
+    var searchText by remember { mutableStateOf("") }
+
+    // Function to handle search button click
+    val onSearch = {
+        searchText = uiState.searchQuery // Initialize with current search query
+        showSearchDialog = true
+    }
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.Bottom
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // FAB for adding a folder
                 SmallFloatingActionButton(
@@ -105,11 +125,30 @@ fun BrowseScreen(
                         modifier = Modifier.size(24.dp)
                     )
                 }
+                FloatingActionButton(onClick = { onSearch() }) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         },
         topBar = {
             TopAppBar(
-                title = { Text(text = uiState.path) },
+                title = { 
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = uiState.path)
+                        // Show search indicator if search query is not empty
+                        if (uiState.searchQuery.isNotEmpty()) {
+                            Text(
+                                text = " (Search: ${uiState.searchQuery})",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                },
                 actions = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         // Edit folder button - only visible when not at root
@@ -158,6 +197,54 @@ fun BrowseScreen(
         )
     }
 
+    // Search dialog
+    if (showSearchDialog) {
+        AlertDialog(
+            onDismissRequest = { showSearchDialog = false },
+            title = { Text("Search Bookmarks") },
+            text = {
+                OutlinedTextField(
+                    value = searchText,
+                    onValueChange = { searchText = it },
+                    label = { Text("Search") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.setSearchQuery(searchText)
+                        viewModel.setShowAll(true)
+                        showSearchDialog = false
+                    }
+                ) {
+                    Text("Search")
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(
+                        onClick = {
+                            searchText = ""
+                            viewModel.setSearchQuery("")
+                            viewModel.setShowAll(false)
+                            showSearchDialog = false
+                        }
+                    ) {
+                        Text("Clear")
+                    }
+                    TextButton(
+                        onClick = {
+                            showSearchDialog = false
+                        }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            }
+        )
+    }
 }
 
 @Composable

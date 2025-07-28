@@ -27,7 +27,8 @@ data class BrowseUiState(
     val visibleBookmarks: List<Bookmark>,
     val loading: Boolean = false,
     val showAll: Boolean = false,
-    val currentFolderId: UUID? = null
+    val currentFolderId: UUID? = null,
+    val searchQuery: String = ""
 )
 
 data class FolderViewModel(
@@ -37,6 +38,7 @@ data class FolderViewModel(
 
 const val CURRENT_PATH_SAVED_STATE_KEY = "CURRENT_PATH_SAVED_STATE_KEY"
 const val SHOW_ALL_SAVED_STATE_KEY = "SHOW_ALL_SAVED_STATE_KEY"
+const val SEARCH_QUERY_SAVED_STATE_KEY = "SEARCH_QUERY_SAVED_STATE_KEY"
 
 @HiltViewModel
 class BrowseViewModel @Inject constructor(
@@ -46,6 +48,7 @@ class BrowseViewModel @Inject constructor(
 ) : ViewModel() {
     private val currentPath: String = savedStateHandle[PATH_ARG]!!
     private val _showAll = savedStateHandle.getStateFlow(SHOW_ALL_SAVED_STATE_KEY, false)
+    private val _searchQuery = savedStateHandle.getStateFlow(SEARCH_QUERY_SAVED_STATE_KEY, "")
     private val _bookmarks = bookmarkRepository.getBookmarksStream()
     private val _rootFolder = folderRepository.getFoldersStream()
         .map { folders -> TagFolder(tag = "root", children = folders, id = UUID.randomUUID()) }
@@ -60,29 +63,48 @@ class BrowseViewModel @Inject constructor(
     private val _visibleFolders = _currentFolder
         .map { folder -> folder.children }
         .flowOn(Dispatchers.Default)
-    private val _visibleBookmarks = combine(_bookmarks, _currentFolder, _showAll)
-    { bookmarks, currentFolder, showAll ->
-        getVisibleBookmarks(
+    private val _visibleBookmarks = combine(_bookmarks, _currentFolder, _showAll, _searchQuery)
+    { bookmarks, currentFolder, showAll, searchQuery ->
+        val filteredBookmarks = getVisibleBookmarks(
             _tags, if (!showAll) {
                 currentFolder
             } else {
                 null
             }, bookmarks
         )
+
+        // Apply search filter if search query is not empty
+        if (searchQuery.isNotEmpty()) {
+            filteredBookmarks.filter { bookmark ->
+                bookmark.title?.contains(searchQuery, ignoreCase = true) == true ||
+                bookmark.url?.contains(searchQuery, ignoreCase = true) == true ||
+                bookmark.description?.contains(searchQuery, ignoreCase = true) == true
+            }
+        } else {
+            filteredBookmarks
+        }
     }
     .distinctUntilChanged()
     .flowOn(Dispatchers.Default)
     private val _isLoading = MutableStateFlow(false)
 
-    val uiState: StateFlow<BrowseUiState> = combine(_isLoading, _visibleFolders, _visibleBookmarks, _showAll, _currentFolder)
-    { loading, visibleFolders, visibleBookmarks, showAll, currentFolder ->
+    val uiState: StateFlow<BrowseUiState> = combine(_isLoading, _visibleFolders, _visibleBookmarks, _showAll, _currentFolder, _searchQuery)
+    { arr ->
+        val loading = arr[0] as Boolean
+        val visibleFolders = arr[1] as List<TagFolder>
+        val visibleBookmarks = arr[2] as List<Bookmark>
+        val showAll = arr[3] as Boolean
+        val currentFolder = arr[4] as TagFolder
+        val searchQuery = arr[5] as String
+
         BrowseUiState(
             path = currentPath,
             visibleFolders = visibleFolders.map { folder -> FolderViewModel(folder, openFolderPath(currentPath, folder)) },
             visibleBookmarks = visibleBookmarks,
             loading = loading,
             showAll = showAll,
-            currentFolderId = if (currentPath != "/") currentFolder.id else null
+            currentFolderId = if (currentPath != "/") currentFolder.id else null,
+            searchQuery = searchQuery
         )
     }
     .flowOn(Dispatchers.Default)
@@ -119,6 +141,10 @@ class BrowseViewModel @Inject constructor(
 
     fun setShowAll(showAll: Boolean) {
         savedStateHandle[SHOW_ALL_SAVED_STATE_KEY] = showAll
+    }
+
+    fun setSearchQuery(query: String) {
+        savedStateHandle[SEARCH_QUERY_SAVED_STATE_KEY] = query
     }
 
     private fun getCurrentFolder(path: String, tagFolders: List<TagFolder>): TagFolder? {
