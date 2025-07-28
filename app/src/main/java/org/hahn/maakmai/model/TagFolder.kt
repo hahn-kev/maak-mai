@@ -3,7 +3,14 @@ package org.hahn.maakmai.model
 import java.util.UUID
 import java.util.stream.Stream
 
-data class TagFolder(val id: UUID, val tag: String, val children: List<TagFolder>, val rootFolder: Boolean = false, val tagGroups: List<String> = emptyList()) {
+data class TagFolder(
+    val id: UUID, 
+    val tag: String, 
+    val children: List<TagFolder>, 
+    val rootFolder: Boolean = false, 
+    val tagGroups: List<String> = emptyList(),
+    val color: String = "0xFF9E9E9E" // Default to grey
+) {
     fun findFolder(path: String): TagFolder? {
         if (path == "/") {
             return this

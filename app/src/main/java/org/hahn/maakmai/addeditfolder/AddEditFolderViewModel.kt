@@ -23,7 +23,8 @@ data class AddEditFolderUiState(
     val isFolderSaved: Boolean = false,
     val isFolderDeleted: Boolean = false,
     val childFolders: List<TagFolder> = emptyList(),
-    val tagGroups: String = ""
+    val tagGroups: String = "",
+    val color: String = "0xFF9E9E9E" // Default to grey
 )
 
 @HiltViewModel
@@ -78,6 +79,7 @@ class AddEditFolderViewModel @Inject constructor(
                     it.copy(
                         tag = folder.tag,
                         tagGroups = folder.tagGroups.joinToString(", "),
+                        color = folder.color,
                         isLoading = false
                     )
                 }
@@ -133,6 +135,12 @@ class AddEditFolderViewModel @Inject constructor(
         }
     }
 
+    fun updateColor(newColor: String) {
+        _uiState.update {
+            it.copy(color = newColor)
+        }
+    }
+
     fun saveFolder() {
         if (uiState.value.tag.isBlank()) {
             return
@@ -149,7 +157,8 @@ class AddEditFolderViewModel @Inject constructor(
                 id = folderId ?: UUID.randomUUID(),
                 tag = uiState.value.tag.trim(),
                 parent = parentId,
-                tagGroups = tagGroupsList
+                tagGroups = tagGroupsList,
+                color = uiState.value.color
             )
 
             val result = if (folderId == null) {

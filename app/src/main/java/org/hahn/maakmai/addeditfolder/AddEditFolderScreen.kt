@@ -1,10 +1,20 @@
 package org.hahn.maakmai.addeditfolder
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -28,6 +38,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import org.hahn.maakmai.ui.theme.FolderColors
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -84,9 +97,11 @@ fun AddEditFolderScreen(
             parentPath = uiState.parentPath,
             childFolders = uiState.childFolders,
             tagGroups = uiState.tagGroups,
+            color = uiState.color,
             showDelete = !uiState.isNew,
             onTagChanged = viewModel::updateTag,
             onTagGroupsChanged = viewModel::updateTagGroups,
+            onColorChanged = viewModel::updateColor,
             onDeleteClick = { showDeleteConfirmation = true },
             modifier = Modifier.padding(paddingValues)
         )
@@ -144,8 +159,10 @@ private fun AddEditFolderContent(
     showDelete: Boolean = true,
     childFolders: List<TagFolder> = emptyList(),
     tagGroups: String = "",
+    color: String = "0xFF9E9E9E",
     onTagChanged: (String) -> Unit = {},
     onTagGroupsChanged: (String) -> Unit = {},
+    onColorChanged: (String) -> Unit = {},
     onDeleteClick: () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
@@ -199,6 +216,15 @@ private fun AddEditFolderContent(
             )
         )
 
+        // Color picker
+        ColorPicker(
+            selectedColor = color,
+            onColorSelected = onColorChanged,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp)
+        )
+
         if (showDelete) {
             Button(
                 onClick = onDeleteClick,
@@ -247,6 +273,43 @@ private fun ChildFolders(folders: List<TagFolder>, prefix: String) {
 }
 
 @Composable
+fun ColorPicker(
+    selectedColor: String,
+    onColorSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = "Folder Color",
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        LazyRow {
+            items(FolderColors) { color ->
+                val isSelected = selectedColor == color.toString()
+                val borderWidth = if (isSelected) 3.dp else 1.dp
+                val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.LightGray
+
+                Surface(
+                    shape = CircleShape,
+                    color = color,
+                    border = BorderStroke(borderWidth, borderColor),
+                    modifier = Modifier
+                        .padding(4.dp)
+                        .size(40.dp)
+                        .clickable { onColorSelected(color.toString()) }
+                ) {}
+
+                Spacer(modifier = Modifier.width(4.dp))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@Composable
 @Preview
 private fun AddEditFolderContentPreview() {
     MaterialTheme {
@@ -255,6 +318,7 @@ private fun AddEditFolderContentPreview() {
                 tag = "New Folder",
                 parentPath = "/knitting",
                 tagGroups = "group1, group2, group3",
+                color = "0xFF2196F3", // Blue
                 childFolders = listOf(
                     TagFolder(
                         id = UUID.randomUUID(),

@@ -12,5 +12,7 @@ data class Folder(
     val tag: String,
     val parent: UUID?,
     @ColumnInfo(defaultValue = "")
-    val tagGroups: List<String> = emptyList()
+    val tagGroups: List<String> = emptyList(),
+    @ColumnInfo(defaultValue = "0xFF9E9E9E") // Default to grey
+    val color: String = "0xFF9E9E9E"
 )
