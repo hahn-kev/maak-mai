@@ -64,7 +64,8 @@ class FolderRepositoryMemory @Inject constructor() : FolderRepository {
             tag = folder.tag,
             children = children,
             rootFolder = folder.parent == null,
-            tagGroups = folder.tagGroups
+            tagGroups = folder.tagGroups,
+            color = folder.color
         )
     }
 

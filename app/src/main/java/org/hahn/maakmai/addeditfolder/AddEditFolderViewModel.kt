@@ -1,5 +1,6 @@
 package org.hahn.maakmai.addeditfolder
 
+import androidx.compose.ui.graphics.toArgb
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -8,10 +9,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import okhttp3.internal.toHexString
 import org.hahn.maakmai.MaakMaiArgs
 import org.hahn.maakmai.data.Folder
 import org.hahn.maakmai.data.FolderRepository
 import org.hahn.maakmai.model.TagFolder
+import org.hahn.maakmai.ui.theme.DefaultFolderColorStr
+import org.hahn.maakmai.ui.theme.FolderColors
 import java.util.UUID
 import javax.inject.Inject
 
@@ -24,7 +28,7 @@ data class AddEditFolderUiState(
     val isFolderDeleted: Boolean = false,
     val childFolders: List<TagFolder> = emptyList(),
     val tagGroups: String = "",
-    val color: String = "0xFF9E9E9E" // Default to grey
+    val color: String = DefaultFolderColorStr // Default to grey
 )
 
 @HiltViewModel
@@ -38,7 +42,13 @@ class AddEditFolderViewModel @Inject constructor(
     private val parentPath: String = savedStateHandle[MaakMaiArgs.PARENT_PATH_ARG] ?: "/"
     private var parentId: UUID? = null
 
-    private val _uiState = MutableStateFlow(AddEditFolderUiState(parentPath = parentPath, isNew = folderId == null))
+    private val _uiState = MutableStateFlow(
+        AddEditFolderUiState(
+            parentPath = parentPath,
+            isNew = folderId == null,
+            color = FolderColors.random().toArgb().toHexString()
+        )
+    )
     val uiState = _uiState.asStateFlow()
 
     init {

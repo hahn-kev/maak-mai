@@ -3,6 +3,7 @@ package org.hahn.maakmai.data
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import org.hahn.maakmai.ui.theme.DefaultFolderColorStr
 import java.util.UUID
 
 @Entity(tableName = "folders")
@@ -13,6 +14,6 @@ data class Folder(
     val parent: UUID?,
     @ColumnInfo(defaultValue = "")
     val tagGroups: List<String> = emptyList(),
-    @ColumnInfo(defaultValue = "0xFF9E9E9E") // Default to grey
-    val color: String = "0xFF9E9E9E"
+    @ColumnInfo(defaultValue = "FF9E9E9E") // Default to grey
+    val color: String = DefaultFolderColorStr
 )

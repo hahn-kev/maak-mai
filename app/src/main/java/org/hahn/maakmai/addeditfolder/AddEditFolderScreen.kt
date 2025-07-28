@@ -57,6 +57,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import okhttp3.internal.toHexString
+import org.hahn.maakmai.ui.theme.DefaultFolderColorStr
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -159,7 +161,7 @@ private fun AddEditFolderContent(
     showDelete: Boolean = true,
     childFolders: List<TagFolder> = emptyList(),
     tagGroups: String = "",
-    color: String = "0xFF9E9E9E",
+    color: String = DefaultFolderColorStr,
     onTagChanged: (String) -> Unit = {},
     onTagGroupsChanged: (String) -> Unit = {},
     onColorChanged: (String) -> Unit = {},
@@ -272,6 +274,7 @@ private fun ChildFolders(folders: List<TagFolder>, prefix: String) {
     }
 }
 
+@OptIn(ExperimentalStdlibApi::class)
 @Composable
 fun ColorPicker(
     selectedColor: String,
@@ -287,7 +290,7 @@ fun ColorPicker(
 
         LazyRow {
             items(FolderColors) { color ->
-                val isSelected = selectedColor == color.toString()
+                val isSelected = selectedColor == color.toArgb().toHexString()
                 val borderWidth = if (isSelected) 3.dp else 1.dp
                 val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.LightGray
 
@@ -298,7 +301,7 @@ fun ColorPicker(
                     modifier = Modifier
                         .padding(4.dp)
                         .size(40.dp)
-                        .clickable { onColorSelected(color.toString()) }
+                        .clickable { onColorSelected(color.toArgb().toHexString()) }
                 ) {}
 
                 Spacer(modifier = Modifier.width(4.dp))
@@ -318,7 +321,7 @@ private fun AddEditFolderContentPreview() {
                 tag = "New Folder",
                 parentPath = "/knitting",
                 tagGroups = "group1, group2, group3",
-                color = "0xFF2196F3", // Blue
+                color = FolderColors.random().toArgb().toHexString(), // Blue
                 childFolders = listOf(
                     TagFolder(
                         id = UUID.randomUUID(),

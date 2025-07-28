@@ -1,5 +1,6 @@
 package org.hahn.maakmai.model
 
+import org.hahn.maakmai.ui.theme.DefaultFolderColorStr
 import java.util.UUID
 import java.util.stream.Stream
 
@@ -9,7 +10,7 @@ data class TagFolder(
     val children: List<TagFolder>, 
     val rootFolder: Boolean = false, 
     val tagGroups: List<String> = emptyList(),
-    val color: String = "0xFF9E9E9E" // Default to grey
+    val color: String = DefaultFolderColorStr
 ) {
     fun findFolder(path: String): TagFolder? {
         if (path == "/") {

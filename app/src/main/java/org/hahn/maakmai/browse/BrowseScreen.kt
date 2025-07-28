@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Patterns
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -48,6 +49,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -323,6 +325,7 @@ fun BookmarkCard(bookmark: Bookmark, onOpen: (Bookmark) -> Unit = {}, onEdit: (B
     }
 }
 
+@OptIn(ExperimentalStdlibApi::class)
 @Composable
 fun FolderCard(folder: TagFolder, onOpen: (TagFolder) -> Unit = {}) {
     Card(
@@ -331,12 +334,25 @@ fun FolderCard(folder: TagFolder, onOpen: (TagFolder) -> Unit = {}) {
             .padding(8.dp)
             .clickable { onOpen(folder) }
     ) {
-        Image(
-            painter = painterResource(R.drawable.teddy),
-            contentDescription = folder.tag,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.size(120.dp)
-        )
+        var folderColor = 0L;
+        try {
+            folderColor = folder.color.hexToLong()
+        } catch (e: Exception) {
+
+        }
+        Box(
+            modifier = Modifier
+                .size(120.dp)
+                .background(Color(folderColor)),
+            contentAlignment = Alignment.Center
+        ) {
+            // Optional: Display the first letter of the folder tag
+            Text(
+                text = folder.tag.take(1).uppercase(),
+                style = MaterialTheme.typography.headlineLarge,
+                color = Color.White
+            )
+        }
         Text(
             text = folder.tag,
             style = MaterialTheme.typography.titleMedium,
