@@ -65,6 +65,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.toLowerCase
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -298,7 +299,7 @@ fun BrowseContent(
                         FlowRow(
                             maxItemsInEachRow = 3,
                         ) {
-                            for (tagFolder in tagFolders) {
+                            for (tagFolder in tagFolders.sortedBy { it.folder.tag.lowercase() }) {
                                 FolderCard(tagFolder.folder, { onFolderClick(tagFolder) })
                             }
                         }
