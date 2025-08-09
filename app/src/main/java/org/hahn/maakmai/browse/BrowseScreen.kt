@@ -11,6 +11,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowColumn
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -60,6 +62,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -72,6 +75,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.toLowerCase
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -313,7 +317,7 @@ fun BrowseContent(
                         for (tagFolder in tagFolders.sortedBy { it.folder.tag.lowercase() }) {
                             FolderCard(
                                 modifier = Modifier
-                                    .height(100.dp)
+                                    .height(120.dp)
                                     .weight(1f),
                                 folder = tagFolder.folder,
                                 onOpen = { onFolderClick(tagFolder) }
@@ -454,7 +458,7 @@ fun BookmarkCard(bookmark: Bookmark, onOpen: (Bookmark) -> Unit = {}, onEdit: (B
     }
 }
 
-@OptIn(ExperimentalStdlibApi::class)
+@OptIn(ExperimentalStdlibApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun FolderCard(modifier: Modifier, folder: TagFolder, onOpen: (TagFolder) -> Unit = {}) {
     Card(
@@ -468,32 +472,33 @@ fun FolderCard(modifier: Modifier, folder: TagFolder, onOpen: (TagFolder) -> Uni
         } catch (e: Exception) {
 
         }
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(folderColor)),
-            contentAlignment = Alignment.BottomStart
+        FlowColumn(
+            modifier = Modifier.fillMaxSize()
         ) {
-            Text(
-                text = folder.tag,
-                color = MaterialTheme.colorScheme.surface,
-                style = MaterialTheme.typography.headlineSmall.copy(
-                    shadow = Shadow(
-                        color = Color.Black,
-                        offset = Offset(2.0f, 2.0f),
-                        blurRadius = 8f
-                    )
-                ),
-                modifier = Modifier.padding(horizontal = 4.dp)
-            )
-            // Optional: Display the first letter of the folder tag
+            Box(
+                modifier = Modifier
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(Color(folderColor))
+                    .fillMaxWidth()
+                    .weight(1f),
+            ) {
+                // Optional: Display the first letter of the folder tag
 //            Text(
 //                text = folder.tag.take(1).uppercase(),
 //                style = MaterialTheme.typography.headlineLarge,
 //                color = Color.White
 //            )
+            }
+            Text(
+                text = folder.tag,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    textAlign = TextAlign.Left
+                ),
+                modifier = Modifier
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                    .fillMaxWidth()
+            )
         }
-
     }
 }
 
