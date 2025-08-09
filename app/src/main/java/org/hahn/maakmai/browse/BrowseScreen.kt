@@ -13,8 +13,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
@@ -95,9 +98,13 @@ fun BrowseScreen(
 
     // State for search dialog
     var showSearchDialog by remember { mutableStateOf(false) }
-    var searchText by remember { mutableStateOf(TextFieldValue(
-        text = ""
-    )) }
+    var searchText by remember {
+        mutableStateOf(
+            TextFieldValue(
+                text = ""
+            )
+        )
+    }
 
     // Function to handle search button click
     val onSearch = {
@@ -141,7 +148,7 @@ fun BrowseScreen(
         },
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = uiState.path)
                         // Show search indicator if search query is not empty
@@ -295,11 +302,22 @@ fun BrowseContent(
             ),
             content = {
                 item(span = StaggeredGridItemSpan.FullLine) {
+                    val foldersPerRow = 3;
                     FlowRow(
-                        maxItemsInEachRow = 3,
+                        maxItemsInEachRow = foldersPerRow,
                     ) {
                         for (tagFolder in tagFolders.sortedBy { it.folder.tag.lowercase() }) {
-                            FolderCard(tagFolder.folder, { onFolderClick(tagFolder) })
+                            FolderCard(
+                                modifier = Modifier
+                                    .height(100.dp)
+                                    .weight(1f),
+                                folder = tagFolder.folder,
+                                onOpen = { onFolderClick(tagFolder) }
+                            )
+                        }
+                        // Fill the remaining space with empty cards
+                        repeat(tagFolders.size % foldersPerRow) {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
@@ -434,10 +452,10 @@ fun BookmarkCard(bookmark: Bookmark, onOpen: (Bookmark) -> Unit = {}, onEdit: (B
 
 @OptIn(ExperimentalStdlibApi::class)
 @Composable
-fun FolderCard(folder: TagFolder, onOpen: (TagFolder) -> Unit = {}) {
+fun FolderCard(modifier: Modifier, folder: TagFolder, onOpen: (TagFolder) -> Unit = {}) {
     Card(
-        modifier = Modifier
-            .padding(8.dp)
+        modifier = modifier
+            .padding(4.dp)
             .clickable { onOpen(folder) }
     ) {
         var folderColor = 0L;
@@ -448,10 +466,15 @@ fun FolderCard(folder: TagFolder, onOpen: (TagFolder) -> Unit = {}) {
         }
         Box(
             modifier = Modifier
-                .size(120.dp)
+                .fillMaxSize()
                 .background(Color(folderColor)),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.BottomStart
         ) {
+            Text(
+                text = folder.tag,
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
             // Optional: Display the first letter of the folder tag
 //            Text(
 //                text = folder.tag.take(1).uppercase(),
@@ -459,11 +482,7 @@ fun FolderCard(folder: TagFolder, onOpen: (TagFolder) -> Unit = {}) {
 //                color = Color.White
 //            )
         }
-        Text(
-            text = folder.tag,
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
+
     }
 }
 
