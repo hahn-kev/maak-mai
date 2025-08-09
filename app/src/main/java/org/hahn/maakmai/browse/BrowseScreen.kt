@@ -37,7 +37,9 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -471,7 +473,7 @@ fun BookmarkCard(bookmark: Bookmark, onOpen: (Bookmark) -> Unit = {}, onEdit: (B
 @OptIn(ExperimentalStdlibApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun FolderCard(modifier: Modifier, folder: TagFolder, onOpen: (TagFolder) -> Unit = {}) {
-    Card(
+    ElevatedCard(
         modifier = modifier
             .padding(4.dp)
             .clickable { onOpen(folder) }
