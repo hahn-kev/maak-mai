@@ -288,32 +288,30 @@ fun BrowseContent(
     } else if (tagFolders.isEmpty() && bookmarks.isEmpty()) {
         EmptyStateView(modifier = modifier, onAddBookmark = onAddBookmark, onAddFolder = onAddFolder)
     } else {
-
-            LazyVerticalStaggeredGrid(
-                modifier = modifier,
-                columns = StaggeredGridCells.Adaptive(
-                    minSize = 180.dp
-                ),
-                content = {
-                    item(span = StaggeredGridItemSpan.FullLine) {
-                        FlowRow(
-                            maxItemsInEachRow = 3,
-                        ) {
-                            for (tagFolder in tagFolders.sortedBy { it.folder.tag.lowercase() }) {
-                                FolderCard(tagFolder.folder, { onFolderClick(tagFolder) })
-                            }
+        LazyVerticalStaggeredGrid(
+            modifier = modifier,
+            columns = StaggeredGridCells.Adaptive(
+                minSize = 180.dp
+            ),
+            content = {
+                item(span = StaggeredGridItemSpan.FullLine) {
+                    FlowRow(
+                        maxItemsInEachRow = 3,
+                    ) {
+                        for (tagFolder in tagFolders.sortedBy { it.folder.tag.lowercase() }) {
+                            FolderCard(tagFolder.folder, { onFolderClick(tagFolder) })
                         }
                     }
-                    items(bookmarks) { bookmark ->
-                        BookmarkCard(
-                            bookmark = bookmark,
-                            onOpen = onBookmarkClick,
-                            onEdit = onBookmarkEdit
-                        )
-                    }
                 }
-            )
-
+                items(bookmarks) { bookmark ->
+                    BookmarkCard(
+                        bookmark = bookmark,
+                        onOpen = onBookmarkClick,
+                        onEdit = onBookmarkEdit
+                    )
+                }
+            }
+        )
     }
 }
 
