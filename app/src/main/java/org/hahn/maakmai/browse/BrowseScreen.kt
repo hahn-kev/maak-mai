@@ -86,6 +86,7 @@ import coil3.compose.AsyncImage
 import org.hahn.maakmai.R
 import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
+import org.hahn.maakmai.ui.theme.FolderColors
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -430,31 +431,40 @@ fun BookmarkCard(bookmark: Bookmark, onOpen: (Bookmark) -> Unit = {}, onEdit: (B
                 model = attachmentUri,
                 contentDescription = bookmark.description,
                 contentScale = ContentScale.FillWidth,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .clip(MaterialTheme.shapes.medium)
+                    .fillMaxWidth()
             )
         } else {
-            // Use the placeholder image if there's no attachment
-            Image(
-                painter = painterResource(R.drawable.teddy),
-                contentDescription = bookmark.description,
-                contentScale = ContentScale.FillWidth,
+            // Calculate deterministic color from bookmark title
+            val colorSeed = bookmark.title.hashCode()
+            val folderColor = FolderColors[Math.abs(colorSeed) % FolderColors.size]
+
+            // Use the placeholder with calculated background color if there's no attachment
+            Box(
                 modifier = Modifier
-                    .size(180.dp)
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(folderColor)
+                    .height(100.dp)
                     .fillMaxWidth()
             )
         }
 
         Text(
+            modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 4.dp),
             text = bookmark.title,
             style = MaterialTheme.typography.titleMedium,
             maxLines = 3
         )
-        Text(
-            text = bookmark.description,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = 4.dp),
-            maxLines = 3
-        )
+        if (bookmark.description != null && !bookmark.description.isEmpty()) {
+            Text(
+                text = bookmark.description,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 4.dp),
+                maxLines = 3
+            )
+        }
     }
 }
 
