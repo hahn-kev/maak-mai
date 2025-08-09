@@ -429,14 +429,26 @@ fun BookmarkCard(bookmark: Bookmark, onOpen: (Bookmark) -> Unit = {}, onEdit: (B
             val attachmentUri = Uri.parse("content://org.hahn.maakmai.attachment/${bookmark.imageAttachmentId}")
 
             // Use AsyncImage to load the image from the URI
-            AsyncImage(
-                model = attachmentUri,
-                contentDescription = bookmark.description,
-                contentScale = ContentScale.FillWidth,
-                modifier = Modifier
-                    .clip(MaterialTheme.shapes.medium)
-                    .fillMaxWidth()
-            )
+            run {
+                val aspectModifier = if (bookmark.imageWidth != null && bookmark.imageHeight != null && bookmark.imageWidth > 0 && bookmark.imageHeight > 0) {
+                    val ratio = bookmark.imageWidth.toFloat() / bookmark.imageHeight.toFloat()
+                    Modifier
+                        .clip(MaterialTheme.shapes.medium)
+                        .fillMaxWidth()
+                        .aspectRatio(ratio)
+                } else {
+                    // Fallback: no known size yet
+                    Modifier
+                        .clip(MaterialTheme.shapes.medium)
+                        .fillMaxWidth()
+                }
+                AsyncImage(
+                    model = attachmentUri,
+                    contentDescription = bookmark.description,
+                    contentScale = ContentScale.FillWidth,
+                    modifier = aspectModifier
+                )
+            }
         } else {
             // Calculate deterministic color from bookmark title
             val colorSeed = bookmark.title.hashCode()

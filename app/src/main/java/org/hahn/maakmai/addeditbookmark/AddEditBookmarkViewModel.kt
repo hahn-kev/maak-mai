@@ -350,11 +350,17 @@ class AddEditBookmarkViewModel @Inject constructor(
             // Process image attachment if present
             var imageAttachmentId: UUID? = null
 
+            // Track image dimensions if we create or keep an image
+            var imageWidth: Int? = null
+            var imageHeight: Int? = null
+
             // Check if we're editing an existing bookmark
             if (bookmarkId != null) {
                 // Get the existing bookmark to check for an existing image attachment
                 val existingBookmark = bookmarkRepository.getBookmark(bookmarkId)
                 val existingAttachmentId = existingBookmark?.imageAttachmentId
+                imageWidth = existingBookmark?.imageWidth
+                imageHeight = existingBookmark?.imageHeight
 
                 // If the URI has changed and there was an existing attachment, delete it
                 if (existingAttachmentId != null && 
@@ -378,8 +384,14 @@ class AddEditBookmarkViewModel @Inject constructor(
                 !uiState.value.selectedImageUri!!.startsWith("content://org.hahn.maakmai.attachment/")) {
                 try {
                     val uri = Uri.parse(uiState.value.selectedImageUri)
-                    val imageData = uriToByteArray(uri)
-                    if (imageData != null) {
+
+                    // Use helper to load image bytes and dimensions
+                    val loaded = loadImageBytesAndSize(uri)
+                    if (loaded != null) {
+                        val (imageData, w, h) = loaded
+                        imageWidth = w
+                        imageHeight = h
+
                         // Create a new attachment with the image data
                         val attachmentId = UUID.randomUUID()
                         val attachment = Attachment(
@@ -410,7 +422,9 @@ class AddEditBookmarkViewModel @Inject constructor(
                     uiState.value.description,
                     uiState.value.url,
                     (rawTags + folderTags + priorityTags + selectedFolderTags).distinct(),
-                    imageAttachmentId
+                    imageAttachmentId,
+                    imageWidth,
+                    imageHeight
                 )
             if (bookmarkId == null) {
                 bookmarkRepository.createBookmark(bookmark)
@@ -477,29 +491,24 @@ class AddEditBookmarkViewModel @Inject constructor(
     }
 
     /**
-     * Converts a URI to a ByteArray using Coil image loader
-     * @param uri The URI to convert
-     * @return The ByteArray representation of the URI's content, or null if conversion fails
+     * Loads an image via Coil and returns its compressed bytes and dimensions.
+     * @param uri The source image URI.
+     * @return Triple<bytes, width, height> or null if loading/conversion fails.
      */
-    private suspend fun uriToByteArray(uri: Uri): ByteArray? = withContext(Dispatchers.IO) {
+    private suspend fun loadImageBytesAndSize(uri: Uri): Triple<ByteArray, Int, Int>? = withContext(Dispatchers.IO) {
         try {
-            // Create an ImageLoader instance
             val imageLoader = SingletonImageLoader.get(context)
-
-            // Create an ImageRequest
             val request = ImageRequest.Builder(context)
                 .data(uri)
                 .build()
-
-            // Execute the request and get the result
             val result = imageLoader.execute(request)
-
-            // Convert the bitmap to ByteArray
             val image = result.image
             if (image is BitmapImage) {
+                val bitmap = image.bitmap
                 val outputStream = ByteArrayOutputStream()
-                image.bitmap.compress(android.graphics.Bitmap.CompressFormat.WEBP_LOSSY, 90, outputStream)
-                outputStream.toByteArray()
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.WEBP_LOSSY, 90, outputStream)
+                val bytes = outputStream.toByteArray()
+                Triple(bytes, bitmap.width, bitmap.height)
             } else {
                 null
             }
