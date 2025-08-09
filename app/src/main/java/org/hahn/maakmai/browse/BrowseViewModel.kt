@@ -99,7 +99,9 @@ class BrowseViewModel @Inject constructor(
 
         BrowseUiState(
             path = currentPath,
-            visibleFolders = visibleFolders.map { folder -> FolderViewModel(folder, openFolderPath(currentPath, folder)) },
+            visibleFolders = visibleFolders
+                .sortedBy { it.tag.lowercase() }
+                .map { folder -> FolderViewModel(folder, openFolderPath(currentPath, folder)) },
             visibleBookmarks = visibleBookmarks,
             loading = loading,
             showAll = showAll,

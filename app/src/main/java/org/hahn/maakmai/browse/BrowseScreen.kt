@@ -317,7 +317,7 @@ fun BrowseContent(
                     FlowRow(
                         maxItemsInEachRow = foldersPerRow,
                     ) {
-                        for (tagFolder in tagFolders.sortedBy { it.folder.tag.lowercase() }) {
+                        for (tagFolder in tagFolders) {
                             FolderCard(
                                 modifier = Modifier
                                     .height(120.dp)
@@ -490,11 +490,12 @@ fun FolderCard(modifier: Modifier, folder: TagFolder, onOpen: (TagFolder) -> Uni
             .padding(4.dp)
             .clickable { onOpen(folder) }
     ) {
-        var folderColor = 0L;
-        try {
-            folderColor = folder.color.hexToLong()
-        } catch (e: Exception) {
-
+        val folderColor = remember(folder.color) {
+            try {
+                folder.color.hexToLong()
+            } catch (e: Exception) {
+                0L
+            }
         }
         FlowColumn(
             modifier = Modifier.fillMaxSize()
