@@ -51,6 +51,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -59,9 +60,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -472,7 +476,14 @@ fun FolderCard(modifier: Modifier, folder: TagFolder, onOpen: (TagFolder) -> Uni
         ) {
             Text(
                 text = folder.tag,
-                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.surface,
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    shadow = Shadow(
+                        color = Color.Black,
+                        offset = Offset(2.0f, 2.0f),
+                        blurRadius = 8f
+                    )
+                ),
                 modifier = Modifier.padding(horizontal = 4.dp)
             )
             // Optional: Display the first letter of the folder tag
