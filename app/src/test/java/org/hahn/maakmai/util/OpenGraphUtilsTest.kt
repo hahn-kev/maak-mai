@@ -1,8 +1,14 @@
 package org.hahn.maakmai.util
 
+import android.os.Build
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [Build.VERSION_CODES.UPSIDE_DOWN_CAKE]) // API 34
 class OpenGraphUtilsTest {
 
     @Test
