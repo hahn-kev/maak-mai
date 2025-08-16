@@ -32,7 +32,7 @@ jobs:
         run: ./gradlew testDebugUnitTest
 
       - name: Report test results
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v2
         if: always()
         with:
           name: Unit Test Results
@@ -46,7 +46,7 @@ jobs:
           script: ./gradlew connectedDebugAndroidTest
 
       - name: Report instrumented test results
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v2
         if: always()
         with:
           name: Instrumented Test Results
