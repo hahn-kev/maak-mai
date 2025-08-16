@@ -2,7 +2,6 @@ package org.hahn.maakmai
 
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.runner.screenshot.Screenshot
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -14,8 +13,8 @@ class MainActivityTest {
     val composeTestRule = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun takeScreenshot() {
-        // Take a screenshot of the initial state of the app
-        Screenshot.capture()
+    fun appLaunches() {
+        // Ensure the app launches and Compose is idle
+        composeTestRule.waitForIdle()
     }
 }

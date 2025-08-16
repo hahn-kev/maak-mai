@@ -132,7 +132,6 @@ dependencies {
     androidTestImplementation(libs.androidx.test.espresso.intents)
     androidTestImplementation(libs.androidx.test.espresso.idling.resources)
     androidTestImplementation(libs.androidx.test.espresso.idling.concurrent)
-    androidTestImplementation(libs.androidx.test.screenshot)
 //    androidTestImplementation(project(":shared-test"))
 
     // AndroidX Test - Hilt testing
