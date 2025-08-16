@@ -34,13 +34,15 @@ data class AddEditFolderUiState(
 @HiltViewModel
 class AddEditFolderViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val folderRepository: FolderRepository
+    private val folderRepository: FolderRepository,
+    private val bookmarkRepository: org.hahn.maakmai.data.BookmarkRepository
 ) : ViewModel() {
     private val folderId: UUID? = savedStateHandle.get<String?>(MaakMaiArgs.FOLDER_ID_ARG).let { id ->
         if (id.isNullOrBlank()) null else UUID.fromString(id)
     }
     private val parentPath: String = savedStateHandle[MaakMaiArgs.PARENT_PATH_ARG] ?: "/"
     private var parentId: UUID? = null
+    private var originalTag: String? = null
 
     private val _uiState = MutableStateFlow(
         AddEditFolderUiState(
@@ -81,6 +83,9 @@ class AddEditFolderViewModel @Inject constructor(
                 // When editing an existing folder, we need to determine the parent ID
                 // from the parent path if it's not the root folder
                 parentId = folder.parent
+
+                // Keep the original tag to compare on save
+                originalTag = folder.tag
 
                 // Load child folders
                 loadChildFolders(folderId)
@@ -178,6 +183,18 @@ class AddEditFolderViewModel @Inject constructor(
             }
 
             if (result.isSuccess) {
+                // If this was an update and the tag changed, rename the tag in bookmarks
+                if (folderId != null) {
+                    val oldTag = originalTag
+                    val newTag = folder.tag
+                    if (!oldTag.isNullOrBlank() && !newTag.equals(oldTag, ignoreCase = true)) {
+                        // Best effort: update bookmarks to reflect the folder's new tag
+                        bookmarkRepository.renameTag(oldTag, newTag)
+                        // Update originalTag to the new value to avoid repeat renames in the same session
+                        originalTag = newTag
+                    }
+                }
+
                 _uiState.update {
                     it.copy(
                         isFolderSaved = true
