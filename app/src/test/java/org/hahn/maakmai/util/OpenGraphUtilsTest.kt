@@ -21,12 +21,8 @@ class OpenGraphUtilsTest {
             </html>
         """.trimIndent()
 
-        // Use reflection to access private methods for testing
-        val parseMethod = OpenGraphUtils::class.java.getDeclaredMethod("parseOpenGraphMetadata", String::class.java)
-        parseMethod.isAccessible = true
-
         // Parse the HTML
-        val metadata = parseMethod.invoke(OpenGraphUtils, html) as OpenGraphUtils.OpenGraphMetadata
+        val metadata = OpenGraphUtils.parseOpenGraphMetadata(html)
 
         // Verify the entities are decoded
         assertEquals("Test \"quoted\" title", metadata.title)
@@ -47,12 +43,8 @@ class OpenGraphUtilsTest {
             </html>
         """.trimIndent()
 
-        // Use reflection to access private methods for testing
-        val parseMethod = OpenGraphUtils::class.java.getDeclaredMethod("parseOpenGraphMetadata", String::class.java)
-        parseMethod.isAccessible = true
-
         // Parse the HTML
-        val metadata = parseMethod.invoke(OpenGraphUtils, html) as OpenGraphUtils.OpenGraphMetadata
+        val metadata = OpenGraphUtils.parseOpenGraphMetadata(html)
 
         // Verify the entities in the title are decoded
         assertEquals("Regular \"title\" with & entities", metadata.title)

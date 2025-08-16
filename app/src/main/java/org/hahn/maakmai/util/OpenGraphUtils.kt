@@ -82,7 +82,7 @@ object OpenGraphUtils {
      * @param html The HTML content to parse
      * @return OpenGraphMetadata object containing the extracted metadata
      */
-    private fun parseOpenGraphMetadata(html: String): OpenGraphMetadata {
+    fun parseOpenGraphMetadata(html: String): OpenGraphMetadata {
         val title = extractMetaTag(html, "og:title")
         val description = extractMetaTag(html, "og:description")
         val url = extractMetaTag(html, "og:url")
