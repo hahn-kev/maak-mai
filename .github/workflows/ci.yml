@@ -31,11 +31,27 @@ jobs:
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest
 
+      - name: Report test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Unit Test Results
+          path: app/build/test-results/testDebugUnitTest/*.xml
+          reporter: java-junit
+
       - name: Run instrumented tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 31
           script: ./gradlew connectedDebugAndroidTest
+
+      - name: Report instrumented test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Instrumented Test Results
+          path: app/build/outputs/androidTest-results/connected/*.xml
+          reporter: java-junit
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
