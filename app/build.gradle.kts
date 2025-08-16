@@ -92,6 +92,7 @@ dependencies {
 
     // Dependencies for local unit tests
     testImplementation(composeBom)
+    testImplementation(libs.robolectric)
     testImplementation(libs.junit4)
     testImplementation(libs.androidx.archcore.testing)
     testImplementation(libs.kotlinx.coroutines.android)
