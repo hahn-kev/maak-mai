@@ -59,6 +59,25 @@ class BookmarkRepositoryMemory @Inject constructor() : BookmarkRepository {
         }
     }
 
+    override suspend fun renameTag(oldTag: String, newTag: String) {
+        if (oldTag.equals(newTag, ignoreCase = true)) return
+
+        // Collect updates to avoid modifying the map during iteration
+        val updates = mutableListOf<Pair<UUID, Bookmark>>()
+        for ((id, bookmark) in bookmarks) {
+            val updatedTags = bookmark.tags.map { tag ->
+                if (tag.equals(oldTag, ignoreCase = true)) newTag else tag
+            }.distinct()
+
+            if (updatedTags != bookmark.tags) {
+                updates.add(id to bookmark.copy(tags = updatedTags))
+            }
+        }
+        for ((id, updatedBookmark) in updates) {
+            bookmarks[id] = updatedBookmark
+        }
+    }
+
     override fun getBookmarksStream(): Flow<List<Bookmark>> {
         return flow {
             emit(bookmarks.values.toList())

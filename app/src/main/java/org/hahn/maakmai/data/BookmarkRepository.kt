@@ -14,6 +14,7 @@ interface BookmarkRepository {
     suspend fun deleteBookmark(id: UUID): Boolean
 
     suspend fun getBookmarksByTags(tags: List<String>): List<Bookmark>
+    suspend fun renameTag(oldTag: String, newTag: String)
 
     fun getBookmarksStream(): Flow<List<Bookmark>>
 

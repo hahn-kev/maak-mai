@@ -41,6 +41,21 @@ class BookmarkRepositoryRoom @Inject constructor(
         }
     }
 
+    override suspend fun renameTag(oldTag: String, newTag: String) {
+        if (oldTag.equals(newTag, ignoreCase = true)) return
+
+        val allBookmarks = bookmarkDao.getAllBookmarks()
+        for (bookmark in allBookmarks) {
+            val updatedTags = bookmark.tags.map { tag ->
+                if (tag.equals(oldTag, ignoreCase = true)) newTag else tag
+            }.distinct()
+
+            if (updatedTags != bookmark.tags) {
+                bookmarkDao.updateBookmark(bookmark.copy(tags = updatedTags))
+            }
+        }
+    }
+
     override fun getBookmarksStream(): Flow<List<Bookmark>> {
         return bookmarkDao.getBookmarksStream()
     }
