@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -51,6 +52,8 @@ import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -187,6 +190,28 @@ fun BrowseScreen(
                         }
                         Switch(uiState.showAll, onCheckedChange = viewModel::setShowAll, modifier = Modifier.padding(end = 8.dp))
                         Text(text = "Show all", style = MaterialTheme.typography.bodySmall)
+
+                        var showMenu by remember { mutableStateOf(false) }
+
+                        IconButton(onClick = { showMenu = !showMenu }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More"
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Export & Share DB") },
+                                onClick = {
+                                    showMenu = false
+                                    viewModel.shareDatabase(context)
+                                }
+                            )
+                        }
                     }
                 },
                 navigationIcon = {

@@ -1,5 +1,8 @@
 package org.hahn.maakmai.browse
 
+import android.content.Context
+import android.content.Intent
+import androidx.core.content.FileProvider
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -18,6 +21,7 @@ import org.hahn.maakmai.data.FolderRepository
 import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
 import org.hahn.maakmai.util.WhileUiSubscribed
+import java.io.File
 import java.util.UUID
 import javax.inject.Inject
 
@@ -171,5 +175,31 @@ class BrowseViewModel @Inject constructor(
         } else {
             return visibleBookmarks;
         }
+    }
+
+    fun shareDatabase(context: Context) {
+        val dbName = "MaakMai.db"
+        val dbFile = context.getDatabasePath(dbName)
+
+        if (!dbFile.exists()) {
+            // Handle case where database file doesn't exist
+            return
+        }
+
+        val cacheDir = context.cacheDir
+        val sharedDb = File(cacheDir, "shared_db.db")
+
+        dbFile.copyTo(sharedDb, true)
+
+        val uri = FileProvider.getUriForFile(context, "org.hahn.maakmai.provider", sharedDb)
+
+        val intent = Intent(Intent.ACTION_SEND)
+        intent.type = "application/x-sqlite3"
+        intent.putExtra(Intent.EXTRA_STREAM, uri)
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+        val chooser = Intent.createChooser(intent, "Share Database")
+        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(chooser)
     }
 }
