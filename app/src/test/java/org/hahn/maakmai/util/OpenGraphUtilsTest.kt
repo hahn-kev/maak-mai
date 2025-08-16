@@ -1,6 +1,5 @@
 package org.hahn.maakmai.util
 
-import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
