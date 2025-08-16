@@ -108,32 +108,33 @@ dependencies {
     kspTest(libs.hilt.compiler)
 
     // Dependencies for Android unit tests
-//    androidTestImplementation(composeBom)
-//    androidTestImplementation(libs.junit4)
-//    androidTestImplementation(libs.kotlinx.coroutines.test)
-//    androidTestImplementation(libs.androidx.compose.ui.test.junit)
+    androidTestImplementation(composeBom)
+    androidTestImplementation(libs.junit4)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit)
 
     // AndroidX Test - JVM testing
-//    testImplementation(libs.androidx.test.core.ktx)
-//    testImplementation(libs.androidx.test.ext)
-//    testImplementation(libs.androidx.test.rules)
+    testImplementation(libs.androidx.test.core.ktx)
+    testImplementation(libs.androidx.test.ext)
+    testImplementation(libs.androidx.test.rules)
 //    testImplementation(project(":shared-test"))
 
     // AndroidX Test - Instrumented testing
-//    androidTestImplementation(libs.androidx.test.core.ktx)
-//    androidTestImplementation(libs.androidx.test.ext)
-//    androidTestImplementation(libs.androidx.test.rules)
-//    androidTestImplementation(libs.room.testing)
-//    androidTestImplementation(libs.androidx.archcore.testing)
-//    androidTestImplementation(libs.androidx.navigation.testing)
-//    androidTestImplementation(libs.androidx.test.espresso.core)
-//    androidTestImplementation(libs.androidx.test.espresso.contrib)
-//    androidTestImplementation(libs.androidx.test.espresso.intents)
-//    androidTestImplementation(libs.androidx.test.espresso.idling.resources)
-//    androidTestImplementation(libs.androidx.test.espresso.idling.concurrent)
+    androidTestImplementation(libs.androidx.test.core.ktx)
+    androidTestImplementation(libs.androidx.test.ext)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.room.testing)
+    androidTestImplementation(libs.androidx.archcore.testing)
+    androidTestImplementation(libs.androidx.navigation.testing)
+    androidTestImplementation(libs.androidx.test.espresso.core)
+    androidTestImplementation(libs.androidx.test.espresso.contrib)
+    androidTestImplementation(libs.androidx.test.espresso.intents)
+    androidTestImplementation(libs.androidx.test.espresso.idling.resources)
+    androidTestImplementation(libs.androidx.test.espresso.idling.concurrent)
+    androidTestImplementation(libs.androidx.test.screenshot)
 //    androidTestImplementation(project(":shared-test"))
 
     // AndroidX Test - Hilt testing
-//    androidTestImplementation(libs.hilt.android.testing)
-//    kspAndroidTest(libs.hilt.compiler)
+    androidTestImplementation(libs.hilt.android.testing)
+    kspAndroidTest(libs.hilt.compiler)
 }
