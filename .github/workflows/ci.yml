@@ -3,20 +3,25 @@ name: CI
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      checks: write
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Gradle
@@ -30,6 +35,28 @@ jobs:
 
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest
+
+      - name: Build and Sign Release APK
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > release.jks
+          export RELEASE_KEYSTORE_PATH=$GITHUB_WORKSPACE/release.jks
+          export RELEASE_STORE_PASSWORD="${{ secrets.RELEASE_STORE_PASSWORD }}"
+          export RELEASE_KEY_ALIAS="${{ secrets.RELEASE_KEY_ALIAS }}"
+          export RELEASE_KEY_PASSWORD="${{ secrets.RELEASE_KEY_PASSWORD }}"
+          VERSION_NAME="${GITHUB_REF#refs/tags/v}"
+          ./gradlew assembleRelease -PVERSION_CODE=${{ github.run_number }} -PVERSION_NAME=$VERSION_NAME
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION_NAME="${GITHUB_REF#refs/tags/v}"
+          gh release create ${{ github.ref_name }} \
+            --title "Release $VERSION_NAME" \
+            --generate-notes \
+            app/build/outputs/apk/release/app-release.apk
 
       - name: Report test results
         uses: dorny/test-reporter@v2
