@@ -61,6 +61,31 @@ Configuration (optional):
 - Create a folder: the name of the folder is the tag, the folder shows all bookmarks with that tag.
 - Browse: open any folder to see its matching bookmarks. Search/sort inside.
 
+## CI/CD and Signing
+
+The project uses GitHub Actions for CI/CD. Production builds are automatically signed and released when a tag starting with `v` (e.g., `v1.0.0`) is pushed to the repository.
+
+### Setting up Signing for CI
+
+To enable signed production builds in CI, you must configure the following GitHub Secrets in your repository:
+
+1.  `RELEASE_KEYSTORE_BASE64`: The base64-encoded content of your `.jks` or `.keystore` file.
+    - You can generate this using: `base64 -w 0 your-keystore.jks`
+2.  `RELEASE_STORE_PASSWORD`: The password for your keystore.
+3.  `RELEASE_KEY_ALIAS`: The alias for your signing key.
+4.  `RELEASE_KEY_PASSWORD`: The password for your signing key.
+
+### How to Release
+
+1.  Ensure all changes are merged into the `main` branch.
+2.  Create and push a new tag:
+    ```bash
+    git tag v1.0.0
+    git push origin v1.0.0
+    ```
+3.  The CI will trigger, build the signed APK, create a GitHub Release named `Release 1.0.0`, and upload the APK as an asset.
+4.  The `versionCode` will be automatically set to the GitHub Action run number, and the `versionName` will be derived from the tag (e.g., `1.0.0`).
+
 ## Testing
 
 - Unit tests for:
