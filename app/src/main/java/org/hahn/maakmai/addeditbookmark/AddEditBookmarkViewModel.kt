@@ -34,6 +34,8 @@ import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
 import org.hahn.maakmai.util.OpenGraphEnricher
 import org.hahn.maakmai.util.OpenGraphUtils
+import org.hahn.maakmai.util.ShortLinkResolver
+import org.hahn.maakmai.util.UrlTitleExtractor
 import java.io.ByteArrayOutputStream
 import java.util.UUID
 import javax.inject.Inject
@@ -80,6 +82,7 @@ class AddEditBookmarkViewModel @Inject constructor(
     private var titleEdited = false
     private var descriptionEdited = false
     private var imageEdited = false
+    private var urlEdited = false
 
     private val _uiState = MutableStateFlow(
         AddEditBookmarkUiState(
@@ -145,11 +148,11 @@ class AddEditBookmarkViewModel @Inject constructor(
                     )
                 }
 
-                // Kick off async OpenGraph enrichment for freshly-captured shares.
-                // The URL is already set above and is never touched by enrichment,
-                // so it is present immediately and saving mid-fetch can't null it.
+                // Kick off async resolution + OpenGraph enrichment for freshly-
+                // captured shares. The URL is already set above and is never nulled
+                // by this, so it is present immediately and saving mid-fetch is safe.
                 if (shouldEnrich && bookmark.url != null) {
-                    enrichFromOpenGraph(bookmark.url)
+                    resolveAndEnrich(bookmark.url)
                 }
             } else {
                 _uiState.update {
@@ -162,13 +165,45 @@ class AddEditBookmarkViewModel @Inject constructor(
     }
 
     /**
-     * Fetches OpenGraph metadata off the main thread and merges only the fields
-     * the user hasn't edited. A failed/timed-out fetch returns empty metadata, so
-     * the captured URL and text-derived title are left intact.
+     * For a freshly-captured share: first resolve redirect shorteners (e.g.
+     * share.google) to their real destination, then fetch OpenGraph metadata and
+     * merge only the fields the user hasn't edited. All network runs off the main
+     * thread. The URL is only ever *replaced* with a resolved destination, never
+     * nulled, and a failed fetch leaves the captured URL and text-derived title
+     * intact.
      */
-    private fun enrichFromOpenGraph(url: String) {
+    private fun resolveAndEnrich(capturedUrl: String) {
         viewModelScope.launch {
-            val openGraph = OpenGraphUtils.extractUrlOpenGraphMetadata(url)
+            // Resolve short links to their destination and reflect it in the URL
+            // field, unless the user has already edited the URL.
+            val resolvedUrl = if (ShortLinkResolver.isShortLink(capturedUrl)) {
+                ShortLinkResolver.resolve(capturedUrl)
+            } else {
+                capturedUrl
+            }
+            if (resolvedUrl != capturedUrl) {
+                if (!urlEdited) {
+                    _uiState.update { it.copy(url = resolvedUrl) }
+                }
+                // The captured title may have been derived from the opaque short
+                // link (e.g. the share.google code). If the user hasn't edited it,
+                // re-derive from the resolved destination so it's meaningful even
+                // when OpenGraph is unavailable. OG below can still improve on it.
+                if (!titleEdited) {
+                    val shortLinkTitle = UrlTitleExtractor.fromUrl(capturedUrl)
+                    _uiState.update { state ->
+                        if (state.title == shortLinkTitle) {
+                            state.copy(title = UrlTitleExtractor.fromUrl(resolvedUrl))
+                        } else {
+                            state
+                        }
+                    }
+                }
+            }
+
+            // Enrich from the URL that will actually be stored.
+            val urlForMetadata = if (urlEdited) _uiState.value.url ?: resolvedUrl else resolvedUrl
+            val openGraph = OpenGraphUtils.extractUrlOpenGraphMetadata(urlForMetadata)
             _uiState.update { state ->
                 val enriched = OpenGraphEnricher.enrich(
                     current = OpenGraphEnricher.Fields(
@@ -209,6 +244,7 @@ class AddEditBookmarkViewModel @Inject constructor(
     }
 
     fun updateUrl(newUrl: String?) {
+        urlEdited = true
         _uiState.update {
             it.copy(url = newUrl)
         }

@@ -35,7 +35,9 @@ object ShareTextParser {
         if (trimmedText.isNotEmpty()) {
             val matcher = Patterns.WEB_URL.matcher(trimmedText)
             if (matcher.find()) {
-                url = trimmedText.substring(matcher.start(), matcher.end())
+                // Unwrap google.com/url?q= redirect wrappers so the destination
+                // (not the wrapper) is captured. Non-wrapper URLs pass through.
+                url = GoogleUrlUnwrapper.unwrap(trimmedText.substring(matcher.start(), matcher.end()))
                 // Whatever text surrounds the URL is the best title candidate.
                 derivedTitle = (trimmedText.substring(0, matcher.start()) + " " +
                         trimmedText.substring(matcher.end()))
