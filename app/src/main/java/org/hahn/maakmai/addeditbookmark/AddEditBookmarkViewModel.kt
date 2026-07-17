@@ -32,6 +32,8 @@ import org.hahn.maakmai.data.FolderRepository
 import org.hahn.maakmai.model.Attachment
 import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
+import org.hahn.maakmai.util.OpenGraphEnricher
+import org.hahn.maakmai.util.OpenGraphUtils
 import java.io.ByteArrayOutputStream
 import java.util.UUID
 import javax.inject.Inject
@@ -69,6 +71,15 @@ class AddEditBookmarkViewModel @Inject constructor(
 ) : ViewModel() {
     private val bookmarkId: UUID? = savedStateHandle.get<String?>(MaakMaiArgs.BOOKMARK_ID_ARG).let { id -> if (id.isNullOrBlank()) null else UUID.fromString(id) }
     private val path: String? = savedStateHandle[MaakMaiArgs.PATH_ARG]
+    // Only the share-capture flow opts in to OpenGraph enrichment; editing an
+    // existing bookmark must never refetch and clobber its saved fields.
+    private val shouldEnrich: Boolean = savedStateHandle.get<Boolean?>(MaakMaiArgs.ENRICH_ARG) ?: false
+
+    // Tracks fields the user has manually edited so async enrichment never
+    // overwrites them.
+    private var titleEdited = false
+    private var descriptionEdited = false
+    private var imageEdited = false
 
     private val _uiState = MutableStateFlow(
         AddEditBookmarkUiState(
@@ -133,6 +144,13 @@ class AddEditBookmarkViewModel @Inject constructor(
                         isLoading = false
                     )
                 }
+
+                // Kick off async OpenGraph enrichment for freshly-captured shares.
+                // The URL is already set above and is never touched by enrichment,
+                // so it is present immediately and saving mid-fetch can't null it.
+                if (shouldEnrich && bookmark.url != null) {
+                    enrichFromOpenGraph(bookmark.url)
+                }
             } else {
                 _uiState.update {
                     it.copy(
@@ -143,13 +161,48 @@ class AddEditBookmarkViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Fetches OpenGraph metadata off the main thread and merges only the fields
+     * the user hasn't edited. A failed/timed-out fetch returns empty metadata, so
+     * the captured URL and text-derived title are left intact.
+     */
+    private fun enrichFromOpenGraph(url: String) {
+        viewModelScope.launch {
+            val openGraph = OpenGraphUtils.extractUrlOpenGraphMetadata(url)
+            _uiState.update { state ->
+                val enriched = OpenGraphEnricher.enrich(
+                    current = OpenGraphEnricher.Fields(
+                        title = state.title,
+                        description = state.description,
+                        imageUri = state.selectedImageUri
+                    ),
+                    ogTitle = openGraph.title,
+                    ogDescription = openGraph.description,
+                    ogImage = openGraph.image,
+                    edited = OpenGraphEnricher.Edited(
+                        title = titleEdited,
+                        description = descriptionEdited,
+                        image = imageEdited
+                    )
+                )
+                state.copy(
+                    title = enriched.title,
+                    description = enriched.description,
+                    selectedImageUri = enriched.imageUri
+                )
+            }
+        }
+    }
+
     fun updateTitle(newTitle: String) {
+        titleEdited = true
         _uiState.update {
             it.copy(title = newTitle)
         }
     }
 
     fun updateDescription(newDescription: String) {
+        descriptionEdited = true
         _uiState.update {
             it.copy(description = newDescription)
         }
@@ -395,6 +448,7 @@ class AddEditBookmarkViewModel @Inject constructor(
      * @param uri The URI of the selected image
      */
     fun updateSelectedImageUri(uri: String?) {
+        imageEdited = true
         _uiState.update {
             it.copy(selectedImageUri = uri)
         }
