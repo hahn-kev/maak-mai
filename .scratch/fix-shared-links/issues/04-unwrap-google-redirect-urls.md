@@ -34,13 +34,14 @@ ticket at the user's request. Verified live that these are NOT query wrappers:
 `share.google/<code>` 302s to `www.google.com/share.google?q=<code>` (where `q`
 is the opaque code, not a URL) and then 301s on to the real destination. The
 chain is plain HTTP 3xx (no JavaScript), so it resolves with a normal HTTP
-client. New `util/ShortLinkResolver` follows the redirect chain off the main
-thread (loop-guarded, capped, relative-Location aware); the pure `followChain`
-and `isShortLink` are unit-tested. `AddEditBookmarkViewModel.resolveAndEnrich`
-resolves short links after capture (async, like OG), updates the URL field, and
-re-derives the URL-based fallback title from the *resolved* destination (so a
-share.google code no longer shows as the title). On any network failure the
-original URL is kept — the link is never lost.
+client. Rather than a separate resolver round-trip, the existing OpenGraph fetch
+(which already follows redirects) now reports the final landed URL via
+`OpenGraphMetadata.finalUrl`; `AddEditBookmarkViewModel.enrichCapturedShare`
+adopts it for known short-link hosts only (`util/ShortLinks.isShortLink`, unit-
+tested) and re-derives the URL-based fallback title from the resolved destination
+(so a share.google code no longer shows as the title). On any network failure the
+original URL is kept — the link is never lost. A spinner in the URL field
+(`isEnriching`) shows while the fetch is in flight.
 
 Verified end-to-end on the emulator with the two real links the user provided:
 `share.google/68O7dzVQBj04q18pQ` → `www.imdb.com/title/tt0111282/`, and

@@ -34,7 +34,7 @@ import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
 import org.hahn.maakmai.util.OpenGraphEnricher
 import org.hahn.maakmai.util.OpenGraphUtils
-import org.hahn.maakmai.util.ShortLinkResolver
+import org.hahn.maakmai.util.ShortLinks
 import org.hahn.maakmai.util.UrlTitleExtractor
 import java.io.ByteArrayOutputStream
 import java.util.UUID
@@ -51,6 +51,7 @@ data class AddEditBookmarkUiState(
     val url: String? = null,
     val tags: String = "",
     val isLoading: Boolean = false,
+    val isEnriching: Boolean = false,
     val isBookmarkSaved: Boolean = false,
     val isBookmarkDeleted: Boolean = false,
     val isNew: Boolean = true,
@@ -148,11 +149,12 @@ class AddEditBookmarkViewModel @Inject constructor(
                     )
                 }
 
-                // Kick off async resolution + OpenGraph enrichment for freshly-
-                // captured shares. The URL is already set above and is never nulled
-                // by this, so it is present immediately and saving mid-fetch is safe.
+                // Kick off async OpenGraph enrichment (which also resolves redirect
+                // shorteners) for freshly-captured shares. The URL is already set
+                // above and is never nulled by this, so it is present immediately and
+                // saving mid-fetch is safe.
                 if (shouldEnrich && bookmark.url != null) {
-                    resolveAndEnrich(bookmark.url)
+                    enrichCapturedShare(bookmark.url)
                 }
             } else {
                 _uiState.update {
@@ -165,66 +167,70 @@ class AddEditBookmarkViewModel @Inject constructor(
     }
 
     /**
-     * For a freshly-captured share: first resolve redirect shorteners (e.g.
-     * share.google) to their real destination, then fetch OpenGraph metadata and
-     * merge only the fields the user hasn't edited. All network runs off the main
-     * thread. The URL is only ever *replaced* with a resolved destination, never
-     * nulled, and a failed fetch leaves the captured URL and text-derived title
-     * intact.
+     * For a freshly-captured share: fetch OpenGraph metadata (a single request that
+     * also follows redirects) and merge only the fields the user hasn't edited. For
+     * known redirect shorteners (e.g. share.google) the URL the fetch landed on is
+     * adopted as the real destination — no separate resolution round-trip needed.
+     *
+     * All network runs off the main thread. The URL is only ever *replaced* with a
+     * resolved destination, never nulled, and a failed fetch leaves the captured URL
+     * and text-derived title intact. `isEnriching` gates a progress indicator.
      */
-    private fun resolveAndEnrich(capturedUrl: String) {
+    private fun enrichCapturedShare(capturedUrl: String) {
         viewModelScope.launch {
-            // Resolve short links to their destination and reflect it in the URL
-            // field, unless the user has already edited the URL.
-            val resolvedUrl = if (ShortLinkResolver.isShortLink(capturedUrl)) {
-                ShortLinkResolver.resolve(capturedUrl)
-            } else {
-                capturedUrl
-            }
-            if (resolvedUrl != capturedUrl) {
-                if (!urlEdited) {
-                    _uiState.update { it.copy(url = resolvedUrl) }
-                }
-                // The captured title may have been derived from the opaque short
-                // link (e.g. the share.google code). If the user hasn't edited it,
-                // re-derive from the resolved destination so it's meaningful even
-                // when OpenGraph is unavailable. OG below can still improve on it.
-                if (!titleEdited) {
-                    val shortLinkTitle = UrlTitleExtractor.fromUrl(capturedUrl)
-                    _uiState.update { state ->
-                        if (state.title == shortLinkTitle) {
-                            state.copy(title = UrlTitleExtractor.fromUrl(resolvedUrl))
-                        } else {
-                            state
+            _uiState.update { it.copy(isEnriching = true) }
+            try {
+                val openGraph = OpenGraphUtils.extractUrlOpenGraphMetadata(capturedUrl)
+
+                // Adopt the resolved destination for known short links only, so
+                // ordinary links are never rewritten by an incidental redirect.
+                val resolvedUrl = openGraph.finalUrl
+                    ?.takeIf { it.isNotBlank() && ShortLinks.isShortLink(capturedUrl) }
+                    ?: capturedUrl
+                if (resolvedUrl != capturedUrl) {
+                    if (!urlEdited) {
+                        _uiState.update { it.copy(url = resolvedUrl) }
+                    }
+                    // The captured title may have been derived from the opaque short
+                    // link (e.g. the share.google code). If the user hasn't edited it,
+                    // re-derive from the resolved destination so it's meaningful even
+                    // when OpenGraph is unavailable.
+                    if (!titleEdited) {
+                        val shortLinkTitle = UrlTitleExtractor.fromUrl(capturedUrl)
+                        _uiState.update { state ->
+                            if (state.title == shortLinkTitle) {
+                                state.copy(title = UrlTitleExtractor.fromUrl(resolvedUrl))
+                            } else {
+                                state
+                            }
                         }
                     }
                 }
-            }
 
-            // Enrich from the URL that will actually be stored.
-            val urlForMetadata = if (urlEdited) _uiState.value.url ?: resolvedUrl else resolvedUrl
-            val openGraph = OpenGraphUtils.extractUrlOpenGraphMetadata(urlForMetadata)
-            _uiState.update { state ->
-                val enriched = OpenGraphEnricher.enrich(
-                    current = OpenGraphEnricher.Fields(
-                        title = state.title,
-                        description = state.description,
-                        imageUri = state.selectedImageUri
-                    ),
-                    ogTitle = openGraph.title,
-                    ogDescription = openGraph.description,
-                    ogImage = openGraph.image,
-                    edited = OpenGraphEnricher.Edited(
-                        title = titleEdited,
-                        description = descriptionEdited,
-                        image = imageEdited
+                _uiState.update { state ->
+                    val enriched = OpenGraphEnricher.enrich(
+                        current = OpenGraphEnricher.Fields(
+                            title = state.title,
+                            description = state.description,
+                            imageUri = state.selectedImageUri
+                        ),
+                        ogTitle = openGraph.title,
+                        ogDescription = openGraph.description,
+                        ogImage = openGraph.image,
+                        edited = OpenGraphEnricher.Edited(
+                            title = titleEdited,
+                            description = descriptionEdited,
+                            image = imageEdited
+                        )
                     )
-                )
-                state.copy(
-                    title = enriched.title,
-                    description = enriched.description,
-                    selectedImageUri = enriched.imageUri
-                )
+                    state.copy(
+                        title = enriched.title,
+                        description = enriched.description,
+                        selectedImageUri = enriched.imageUri
+                    )
+                }
+            } finally {
+                _uiState.update { it.copy(isEnriching = false) }
             }
         }
     }

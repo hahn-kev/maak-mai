@@ -128,6 +128,7 @@ fun AddEditBookmarkScreen(
             title = uiState.title,
             description = uiState.description,
             url = uiState.url,
+            isEnriching = uiState.isEnriching,
             tags = uiState.tags,
             folders = uiState.folders,
             selectedFolderPath = uiState.selectedFolderPath,
@@ -192,6 +193,7 @@ private fun AddEditBookmarkContent(
     title: String,
     description: String,
     url: String?,
+    isEnriching: Boolean = false,
     tags: String,
     onTitleChanged: (String) -> Unit = {},
     onDescriptionChanged: (String) -> Unit = {},
@@ -264,6 +266,14 @@ private fun AddEditBookmarkContent(
             textStyle = MaterialTheme.typography.bodyLarge,
             singleLine = true,
             colors = textFieldColors,
+            trailingIcon = if (isEnriching) {
+                {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                }
+            } else null,
             keyboardOptions = KeyboardOptions(
                 imeAction = ImeAction.Next,
                 keyboardType = KeyboardType.Uri
