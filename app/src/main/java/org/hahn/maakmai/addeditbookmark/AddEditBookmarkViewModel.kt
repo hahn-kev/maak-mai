@@ -4,7 +4,6 @@ import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -33,10 +32,7 @@ import org.hahn.maakmai.data.FolderRepository
 import org.hahn.maakmai.model.Attachment
 import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
-import org.hahn.maakmai.util.OpenGraphUtils
 import java.io.ByteArrayOutputStream
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
 import java.util.UUID
 import javax.inject.Inject
 
@@ -73,9 +69,6 @@ class AddEditBookmarkViewModel @Inject constructor(
 ) : ViewModel() {
     private val bookmarkId: UUID? = savedStateHandle.get<String?>(MaakMaiArgs.BOOKMARK_ID_ARG).let { id -> if (id.isNullOrBlank()) null else UUID.fromString(id) }
     private val path: String? = savedStateHandle[MaakMaiArgs.PATH_ARG]
-    private val sharedUrl: String? = savedStateHandle.get<String?>(MaakMaiArgs.URL_ARG)?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
-    private val sharedTitle: String? = savedStateHandle.get<String?>(MaakMaiArgs.BOOKMARK_TITLE_ARG)?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
-    private val sharedSubject: String? = savedStateHandle.get<String?>(MaakMaiArgs.SUBJECT_ARG)?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
 
     private val _uiState = MutableStateFlow(
         AddEditBookmarkUiState(
@@ -86,11 +79,11 @@ class AddEditBookmarkViewModel @Inject constructor(
 
 
     init {
+        // Shared links are auto-captured and persisted before this screen opens, so
+        // the Add screen is always an edit of an existing bookmark id (or a blank new
+        // one when adding manually). See SharedBookmarkFactory / ShareUrlActivity.
         if (bookmarkId != null) {
             loadBookmark(bookmarkId)
-        } else {
-            // Handle shared URL if available
-            processSharedContent()
         }
         viewModelScope.launch {
             val tags = bookmarkRepository.getTagsWithCount().entries.sortedByDescending { it.value }.map { tagsWithCount ->
@@ -107,89 +100,6 @@ class AddEditBookmarkViewModel @Inject constructor(
                 }
                 updateFolderTags()
             }
-        }
-    }
-
-    private fun processSharedContent() {
-        if (sharedUrl != null) {
-            // If we have a URL, use it and extract a title if needed
-            viewModelScope.launch {
-                // First try to get title from Open Graph metadata
-                val openGraph = OpenGraphUtils.extractUrlOpenGraphMetadata(sharedUrl)
-                val title = openGraph.title ?: sharedTitle ?: extractTitleFromUrl(sharedUrl)
-                var description =  openGraph.description ?: sharedSubject ?: ""
-                if (title == description) description = ""
-                _uiState.update {
-                    it.copy(
-                        title = title,
-                        description = description,
-                        url = sharedUrl,
-                        selectedImageUri = openGraph.image
-                    )
-                }
-            }
-        } else if (sharedTitle != null) {
-            // If we have a title but no URL, use it as the title
-            _uiState.update {
-                it.copy(
-                    title = sharedTitle,
-                    description = sharedSubject ?: ""
-                )
-            }
-        }
-    }
-
-    private fun extractLastPathSegment(uri: Uri): String? {
-        return try {
-            val path = uri.path ?: return null
-            path.split("/").last().takeIf { it.isNotEmpty() }
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun isAllNumbers(str: String): Boolean {
-        return str.all { it.isDigit() || it == '.' || it == ',' }
-    }
-
-    private fun cleanupTitle(title: String): String {
-        return title
-            .replace("[_-]".toRegex(), " ")
-            .replace("\\s+".toRegex(), " ")
-            .split(" ")
-            .joinToString(" ") { word ->
-                word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-            }
-            .trim()
-    }
-
-    private fun extractTitleFromUrl(url: String): String {
-        try {
-            // Fall back to extracting from URL structure if Open Graph failed
-            val uri = url.toUri()
-
-            // Try last path segment first
-            extractLastPathSegment(uri)?.let { segment ->
-                if (!isAllNumbers(segment)) {
-                    return cleanupTitle(segment)
-                }
-            }
-
-            // Try hostname without TLD
-            uri.host?.let { host ->
-                val parts = host.split(".")
-                if (parts.size >= 2) {
-                    val domain = parts[parts.size - 2]
-                    if (!isAllNumbers(domain)) {
-                        return cleanupTitle(domain)
-                    }
-                }
-            }
-
-            // Fallback to full hostname
-            return uri.host ?: url
-        } catch (e: Exception) {
-            return url
         }
     }
 

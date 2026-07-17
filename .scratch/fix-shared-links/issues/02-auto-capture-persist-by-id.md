@@ -16,11 +16,35 @@ ticket therefore also closes the special-character corruption bug (spec item c).
 
 **Blocked by:** 01 (uses the parsed { url, title } it produces).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Sharing a link creates a persisted bookmark before the user does anything
-- [ ] Editing on the Add screen updates that same bookmark (no duplicate created)
-- [ ] Pressing back / close / swiping the app away after sharing leaves the link saved
-- [ ] An explicit discard action removes the auto-captured bookmark
-- [ ] Shared URLs containing `+ % / ? & # %20 %2F` are stored byte-for-byte (special-char regression)
-- [ ] Re-sharing / re-entering the same share doesn't create duplicates within the same flow
+- [x] Sharing a link creates a persisted bookmark before the user does anything
+- [x] Editing on the Add screen updates that same bookmark (no duplicate created)
+- [x] Pressing back / close / swiping the app away after sharing leaves the link saved
+- [x] An explicit discard action removes the auto-captured bookmark
+- [x] Shared URLs containing `+ % / ? & # %20 %2F` are stored byte-for-byte (special-char regression)
+- [x] Re-sharing / re-entering the same share doesn't create duplicates within the same flow
+
+## Comments
+
+Implemented via a persist-first restructure:
+
+- New pure `util/SharedBookmarkFactory.fromShare(parsed, id)` builds the bookmark
+  captured the moment a share arrives (URL stored verbatim, sensible title,
+  untagged). Title-from-URL fallback moved out of the view model into
+  `util/UrlTitleExtractor`. Both covered by `SharedBookmarkFactoryTest`.
+- `ShareUrlActivity` now injects `BookmarkRepository`, persists the bookmark on
+  arrival, then opens the Add screen *by id* via the new
+  `MaakMaiNavigationActions.shareCaptureRoute(id)`. A `savedInstanceState`-backed
+  captured id prevents a second insert on rotation/recreation.
+- The URL/subject/bookmarkTitle route args, `addFromShareRoute`, and the view
+  model's `processSharedContent` were removed — the editor reads everything from
+  the persisted record, so the shared URL is never encoded into and re-decoded out
+  of a nav route. This closes the special-character corruption bug (spec item c).
+- The Add screen's existing Delete action is the explicit discard (deletes the
+  captured bookmark); `onBookmarkDelete` now closes the share activity.
+
+Note: async OpenGraph enrichment is intentionally *not* re-added here — that is
+ticket 03, which builds on this persist-first flow. End-to-end emulator
+verification wasn't run (emulator tests are disabled in this repo); the capture
+logic and byte-for-byte URL guarantee are covered by unit tests.
