@@ -28,7 +28,8 @@ data class BrowseUiState(
     val loading: Boolean = false,
     val showAll: Boolean = false,
     val currentFolderId: UUID? = null,
-    val searchQuery: String = ""
+    val searchQuery: String = "",
+    val sortOrder: BookmarkSort = BookmarkSort.CREATED_NEWEST
 )
 
 data class FolderViewModel(
@@ -39,6 +40,7 @@ data class FolderViewModel(
 const val CURRENT_PATH_SAVED_STATE_KEY = "CURRENT_PATH_SAVED_STATE_KEY"
 const val SHOW_ALL_SAVED_STATE_KEY = "SHOW_ALL_SAVED_STATE_KEY"
 const val SEARCH_QUERY_SAVED_STATE_KEY = "SEARCH_QUERY_SAVED_STATE_KEY"
+const val SORT_ORDER_SAVED_STATE_KEY = "SORT_ORDER_SAVED_STATE_KEY"
 
 @HiltViewModel
 class BrowseViewModel @Inject constructor(
@@ -49,6 +51,10 @@ class BrowseViewModel @Inject constructor(
     private val currentPath: String = savedStateHandle[PATH_ARG]!!
     private val _showAll = savedStateHandle.getStateFlow(SHOW_ALL_SAVED_STATE_KEY, false)
     private val _searchQuery = savedStateHandle.getStateFlow(SEARCH_QUERY_SAVED_STATE_KEY, "")
+    private val _sortOrder = savedStateHandle
+        .getStateFlow(SORT_ORDER_SAVED_STATE_KEY, BookmarkSort.CREATED_NEWEST.name)
+        .map { value -> runCatching { BookmarkSort.valueOf(value) }.getOrDefault(BookmarkSort.CREATED_NEWEST) }
+        .distinctUntilChanged()
     private val _bookmarks = bookmarkRepository.getBookmarksStream()
     private val _rootFolder = folderRepository.getFoldersStream()
         .map { folders -> TagFolder(tag = "root", children = folders, id = UUID.randomUUID()) }
@@ -63,8 +69,8 @@ class BrowseViewModel @Inject constructor(
     private val _visibleFolders = _currentFolder
         .map { folder -> folder.children }
         .flowOn(Dispatchers.Default)
-    private val _visibleBookmarks = combine(_bookmarks, _currentFolder, _showAll, _searchQuery)
-    { bookmarks, currentFolder, showAll, searchQuery ->
+    private val _visibleBookmarks = combine(_bookmarks, _currentFolder, _showAll, _searchQuery, _sortOrder)
+    { bookmarks, currentFolder, showAll, searchQuery, sortOrder ->
         val filteredBookmarks = getVisibleBookmarks(
             _tags, if (!showAll) {
                 currentFolder
@@ -73,8 +79,7 @@ class BrowseViewModel @Inject constructor(
             }, bookmarks
         )
 
-        // Apply search filter if search query is not empty
-        if (searchQuery.isNotEmpty()) {
+        val searchedBookmarks = if (searchQuery.isNotEmpty()) {
             filteredBookmarks.filter { bookmark ->
                 bookmark.title?.contains(searchQuery, ignoreCase = true) == true ||
                 bookmark.url?.contains(searchQuery, ignoreCase = true) == true ||
@@ -83,12 +88,13 @@ class BrowseViewModel @Inject constructor(
         } else {
             filteredBookmarks
         }
+        sortBookmarks(searchedBookmarks, sortOrder)
     }
     .distinctUntilChanged()
     .flowOn(Dispatchers.Default)
     private val _isLoading = MutableStateFlow(false)
 
-    val uiState: StateFlow<BrowseUiState> = combine(_isLoading, _visibleFolders, _visibleBookmarks, _showAll, _currentFolder, _searchQuery)
+    val uiState: StateFlow<BrowseUiState> = combine(_isLoading, _visibleFolders, _visibleBookmarks, _showAll, _currentFolder, _searchQuery, _sortOrder)
     { arr ->
         val loading = arr[0] as Boolean
         val visibleFolders = arr[1] as List<TagFolder>
@@ -96,6 +102,7 @@ class BrowseViewModel @Inject constructor(
         val showAll = arr[3] as Boolean
         val currentFolder = arr[4] as TagFolder
         val searchQuery = arr[5] as String
+        val sortOrder = arr[6] as BookmarkSort
 
         BrowseUiState(
             path = currentPath,
@@ -106,7 +113,8 @@ class BrowseViewModel @Inject constructor(
             loading = loading,
             showAll = showAll,
             currentFolderId = if (currentPath != "/") currentFolder.id else null,
-            searchQuery = searchQuery
+            searchQuery = searchQuery,
+            sortOrder = sortOrder
         )
     }
     .flowOn(Dispatchers.Default)
@@ -147,6 +155,10 @@ class BrowseViewModel @Inject constructor(
 
     fun setSearchQuery(query: String) {
         savedStateHandle[SEARCH_QUERY_SAVED_STATE_KEY] = query
+    }
+
+    fun setSortOrder(sortOrder: BookmarkSort) {
+        savedStateHandle[SORT_ORDER_SAVED_STATE_KEY] = sortOrder.name
     }
 
     private fun getCurrentFolder(path: String, tagFolders: List<TagFolder>): TagFolder? {

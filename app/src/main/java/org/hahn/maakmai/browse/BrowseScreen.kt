@@ -30,6 +30,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.CreateNewFolder
@@ -39,6 +40,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -109,6 +112,7 @@ fun BrowseScreen(
 
     // State for search dialog
     var showSearchDialog by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
     var searchText by remember {
         mutableStateOf(
             TextFieldValue(
@@ -181,6 +185,36 @@ fun BrowseScreen(
                                     Icon(
                                         imageVector = Icons.Default.Edit,
                                         contentDescription = "Edit folder"
+                                    )
+                                }
+                            }
+                        }
+                        Box {
+                            IconButton(onClick = { showSortMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Sort,
+                                    contentDescription = "Sort bookmarks"
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showSortMenu,
+                                onDismissRequest = { showSortMenu = false }
+                            ) {
+                                BookmarkSort.entries.forEach { sortOrder ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                if (sortOrder == uiState.sortOrder) {
+                                                    "✓ ${sortOrder.label}"
+                                                } else {
+                                                    sortOrder.label
+                                                }
+                                            )
+                                        },
+                                        onClick = {
+                                            viewModel.setSortOrder(sortOrder)
+                                            showSortMenu = false
+                                        }
                                     )
                                 }
                             }
@@ -283,6 +317,16 @@ fun BrowseScreen(
         )
     }
 }
+
+private val BookmarkSort.label: String
+    get() = when (this) {
+        BookmarkSort.CREATED_NEWEST -> "Created: newest first"
+        BookmarkSort.CREATED_OLDEST -> "Created: oldest first"
+        BookmarkSort.TITLE_ASCENDING -> "Title: A–Z"
+        BookmarkSort.TITLE_DESCENDING -> "Title: Z–A"
+        BookmarkSort.DOMAIN_ASCENDING -> "Domain: A–Z"
+        BookmarkSort.DOMAIN_DESCENDING -> "Domain: Z–A"
+    }
 
 @Composable
 fun BrowseContent(

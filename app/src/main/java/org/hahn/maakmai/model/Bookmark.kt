@@ -1,5 +1,6 @@
 package org.hahn.maakmai.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.util.UUID
@@ -14,5 +15,7 @@ data class Bookmark(
     val tags: List<String>,
     val imageAttachmentId: UUID? = null,
     val imageWidth: Int? = null,
-    val imageHeight: Int? = null
+    val imageHeight: Int? = null,
+    @ColumnInfo(defaultValue = "0")
+    val createdAt: Long = System.currentTimeMillis()
 )

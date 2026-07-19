@@ -353,6 +353,7 @@ class AddEditBookmarkViewModel @Inject constructor(
             // Track image dimensions if we create or keep an image
             var imageWidth: Int? = null
             var imageHeight: Int? = null
+            var createdAt = System.currentTimeMillis()
 
             // Check if we're editing an existing bookmark
             if (bookmarkId != null) {
@@ -361,6 +362,7 @@ class AddEditBookmarkViewModel @Inject constructor(
                 val existingAttachmentId = existingBookmark?.imageAttachmentId
                 imageWidth = existingBookmark?.imageWidth
                 imageHeight = existingBookmark?.imageHeight
+                createdAt = existingBookmark?.createdAt ?: createdAt
 
                 // If the URI has changed and there was an existing attachment, delete it
                 if (existingAttachmentId != null && 
@@ -417,14 +419,15 @@ class AddEditBookmarkViewModel @Inject constructor(
             val rawTags = uiState.value.tags.split(",").map {it.trim()} .filter { it.isNotBlank() }
             val bookmark =
                 Bookmark(
-                    bookmarkId ?: UUID.randomUUID(),
-                    uiState.value.title,
-                    uiState.value.description,
-                    uiState.value.url,
-                    (rawTags + folderTags + priorityTags + selectedFolderTags).distinct(),
-                    imageAttachmentId,
-                    imageWidth,
-                    imageHeight
+                    id = bookmarkId ?: UUID.randomUUID(),
+                    title = uiState.value.title,
+                    description = uiState.value.description,
+                    url = uiState.value.url,
+                    tags = (rawTags + folderTags + priorityTags + selectedFolderTags).distinct(),
+                    imageAttachmentId = imageAttachmentId,
+                    imageWidth = imageWidth,
+                    imageHeight = imageHeight,
+                    createdAt = createdAt
                 )
             if (bookmarkId == null) {
                 bookmarkRepository.createBookmark(bookmark)
