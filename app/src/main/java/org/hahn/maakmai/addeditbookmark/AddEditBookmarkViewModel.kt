@@ -4,7 +4,6 @@ import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -19,6 +18,8 @@ import coil3.size.Scale
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -33,10 +34,11 @@ import org.hahn.maakmai.data.FolderRepository
 import org.hahn.maakmai.model.Attachment
 import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
+import org.hahn.maakmai.util.OpenGraphEnricher
 import org.hahn.maakmai.util.OpenGraphUtils
+import org.hahn.maakmai.util.ShortLinks
+import org.hahn.maakmai.util.UrlTitleExtractor
 import java.io.ByteArrayOutputStream
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
 import java.util.UUID
 import javax.inject.Inject
 
@@ -51,6 +53,7 @@ data class AddEditBookmarkUiState(
     val url: String? = null,
     val tags: String = "",
     val isLoading: Boolean = false,
+    val isEnriching: Boolean = false,
     val isBookmarkSaved: Boolean = false,
     val isBookmarkDeleted: Boolean = false,
     val isNew: Boolean = true,
@@ -73,9 +76,20 @@ class AddEditBookmarkViewModel @Inject constructor(
 ) : ViewModel() {
     private val bookmarkId: UUID? = savedStateHandle.get<String?>(MaakMaiArgs.BOOKMARK_ID_ARG).let { id -> if (id.isNullOrBlank()) null else UUID.fromString(id) }
     private val path: String? = savedStateHandle[MaakMaiArgs.PATH_ARG]
-    private val sharedUrl: String? = savedStateHandle.get<String?>(MaakMaiArgs.URL_ARG)?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
-    private val sharedTitle: String? = savedStateHandle.get<String?>(MaakMaiArgs.BOOKMARK_TITLE_ARG)?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
-    private val sharedSubject: String? = savedStateHandle.get<String?>(MaakMaiArgs.SUBJECT_ARG)?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) }
+    // True when the screen was opened from a share action (see shareCaptureRoute).
+    // A share capture both enriches via OpenGraph and auto-saves edits, so the user
+    // never has to tap Save; editing an existing bookmark does neither.
+    private val isShareCapture: Boolean = savedStateHandle.get<Boolean?>(MaakMaiArgs.SHARE_CAPTURE_ARG) ?: false
+
+    // Tracks fields the user has manually edited so async enrichment never
+    // overwrites them.
+    private var titleEdited = false
+    private var descriptionEdited = false
+    private var imageEdited = false
+    private var urlEdited = false
+
+    // Debounces auto-save writes so only the latest change is persisted.
+    private var autoSaveJob: Job? = null
 
     private val _uiState = MutableStateFlow(
         AddEditBookmarkUiState(
@@ -86,11 +100,11 @@ class AddEditBookmarkViewModel @Inject constructor(
 
 
     init {
+        // Shared links are auto-captured and persisted before this screen opens, so
+        // the Add screen is always an edit of an existing bookmark id (or a blank new
+        // one when adding manually). See SharedBookmarkFactory / ShareUrlActivity.
         if (bookmarkId != null) {
             loadBookmark(bookmarkId)
-        } else {
-            // Handle shared URL if available
-            processSharedContent()
         }
         viewModelScope.launch {
             val tags = bookmarkRepository.getTagsWithCount().entries.sortedByDescending { it.value }.map { tagsWithCount ->
@@ -107,89 +121,6 @@ class AddEditBookmarkViewModel @Inject constructor(
                 }
                 updateFolderTags()
             }
-        }
-    }
-
-    private fun processSharedContent() {
-        if (sharedUrl != null) {
-            // If we have a URL, use it and extract a title if needed
-            viewModelScope.launch {
-                // First try to get title from Open Graph metadata
-                val openGraph = OpenGraphUtils.extractUrlOpenGraphMetadata(sharedUrl)
-                val title = openGraph.title ?: sharedTitle ?: extractTitleFromUrl(sharedUrl)
-                var description =  openGraph.description ?: sharedSubject ?: ""
-                if (title == description) description = ""
-                _uiState.update {
-                    it.copy(
-                        title = title,
-                        description = description,
-                        url = sharedUrl,
-                        selectedImageUri = openGraph.image
-                    )
-                }
-            }
-        } else if (sharedTitle != null) {
-            // If we have a title but no URL, use it as the title
-            _uiState.update {
-                it.copy(
-                    title = sharedTitle,
-                    description = sharedSubject ?: ""
-                )
-            }
-        }
-    }
-
-    private fun extractLastPathSegment(uri: Uri): String? {
-        return try {
-            val path = uri.path ?: return null
-            path.split("/").last().takeIf { it.isNotEmpty() }
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun isAllNumbers(str: String): Boolean {
-        return str.all { it.isDigit() || it == '.' || it == ',' }
-    }
-
-    private fun cleanupTitle(title: String): String {
-        return title
-            .replace("[_-]".toRegex(), " ")
-            .replace("\\s+".toRegex(), " ")
-            .split(" ")
-            .joinToString(" ") { word ->
-                word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-            }
-            .trim()
-    }
-
-    private fun extractTitleFromUrl(url: String): String {
-        try {
-            // Fall back to extracting from URL structure if Open Graph failed
-            val uri = url.toUri()
-
-            // Try last path segment first
-            extractLastPathSegment(uri)?.let { segment ->
-                if (!isAllNumbers(segment)) {
-                    return cleanupTitle(segment)
-                }
-            }
-
-            // Try hostname without TLD
-            uri.host?.let { host ->
-                val parts = host.split(".")
-                if (parts.size >= 2) {
-                    val domain = parts[parts.size - 2]
-                    if (!isAllNumbers(domain)) {
-                        return cleanupTitle(domain)
-                    }
-                }
-            }
-
-            // Fallback to full hostname
-            return uri.host ?: url
-        } catch (e: Exception) {
-            return url
         }
     }
 
@@ -223,6 +154,14 @@ class AddEditBookmarkViewModel @Inject constructor(
                         isLoading = false
                     )
                 }
+
+                // Kick off async OpenGraph enrichment (which also resolves redirect
+                // shorteners) for freshly-captured shares. The URL is already set
+                // above and is never nulled by this, so it is present immediately and
+                // saving mid-fetch is safe.
+                if (isShareCapture && bookmark.url != null) {
+                    enrichCapturedShare(bookmark.url)
+                }
             } else {
                 _uiState.update {
                     it.copy(
@@ -233,28 +172,108 @@ class AddEditBookmarkViewModel @Inject constructor(
         }
     }
 
+    /**
+     * For a freshly-captured share: fetch OpenGraph metadata (a single request that
+     * also follows redirects) and merge only the fields the user hasn't edited. For
+     * known redirect shorteners (e.g. share.google) the URL the fetch landed on is
+     * adopted as the real destination — no separate resolution round-trip needed.
+     *
+     * All network runs off the main thread. The URL is only ever *replaced* with a
+     * resolved destination, never nulled, and a failed fetch leaves the captured URL
+     * and text-derived title intact. `isEnriching` gates a progress indicator.
+     */
+    private fun enrichCapturedShare(capturedUrl: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isEnriching = true) }
+            try {
+                val openGraph = OpenGraphUtils.extractUrlOpenGraphMetadata(capturedUrl)
+
+                // Adopt the resolved destination for known short links only, so
+                // ordinary links are never rewritten by an incidental redirect.
+                val resolvedUrl = openGraph.finalUrl
+                    ?.takeIf { it.isNotBlank() && ShortLinks.isShortLink(capturedUrl) }
+                    ?: capturedUrl
+                if (resolvedUrl != capturedUrl) {
+                    if (!urlEdited) {
+                        _uiState.update { it.copy(url = resolvedUrl) }
+                    }
+                    // The captured title may have been derived from the opaque short
+                    // link (e.g. the share.google code). If the user hasn't edited it,
+                    // re-derive from the resolved destination so it's meaningful even
+                    // when OpenGraph is unavailable.
+                    if (!titleEdited) {
+                        val shortLinkTitle = UrlTitleExtractor.fromUrl(capturedUrl)
+                        _uiState.update { state ->
+                            if (state.title == shortLinkTitle) {
+                                state.copy(title = UrlTitleExtractor.fromUrl(resolvedUrl))
+                            } else {
+                                state
+                            }
+                        }
+                    }
+                }
+
+                _uiState.update { state ->
+                    val enriched = OpenGraphEnricher.enrich(
+                        current = OpenGraphEnricher.Fields(
+                            title = state.title,
+                            description = state.description,
+                            imageUri = state.selectedImageUri
+                        ),
+                        ogTitle = openGraph.title,
+                        ogDescription = openGraph.description,
+                        ogImage = openGraph.image,
+                        edited = OpenGraphEnricher.Edited(
+                            title = titleEdited,
+                            description = descriptionEdited,
+                            image = imageEdited
+                        )
+                    )
+                    state.copy(
+                        title = enriched.title,
+                        description = enriched.description,
+                        selectedImageUri = enriched.imageUri
+                    )
+                }
+
+                // Persist the enriched data (resolved URL, title, description,
+                // image) so it survives even if the user backs out without saving.
+                scheduleAutoSave()
+            } finally {
+                _uiState.update { it.copy(isEnriching = false) }
+            }
+        }
+    }
+
     fun updateTitle(newTitle: String) {
+        titleEdited = true
         _uiState.update {
             it.copy(title = newTitle)
         }
+        scheduleAutoSave()
     }
 
     fun updateDescription(newDescription: String) {
+        descriptionEdited = true
         _uiState.update {
             it.copy(description = newDescription)
         }
+        scheduleAutoSave()
     }
 
     fun updateUrl(newUrl: String?) {
+        urlEdited = true
         _uiState.update {
             it.copy(url = newUrl)
         }
+        scheduleAutoSave()
     }
 
     fun updateTags(newTags: String) {
         _uiState.update {
             it.copy(tags = newTags)
         }
+        scheduleAutoSave()
     }
 
     /**
@@ -280,6 +299,7 @@ class AddEditBookmarkViewModel @Inject constructor(
 
         // Update folder tags based on the new selected folder path
         updateFolderTags()
+        scheduleAutoSave()
     }
 
     /**
@@ -333,6 +353,7 @@ class AddEditBookmarkViewModel @Inject constructor(
             it.copy(selectedFolderPath = emptyList())
         }
         updateFolderTags()
+        scheduleAutoSave()
     }
 
     fun removeLastSelectedFolder() {
@@ -342,11 +363,54 @@ class AddEditBookmarkViewModel @Inject constructor(
                 it.copy(selectedFolderPath = currentPath.dropLast(1))
             }
             updateFolderTags()
+            scheduleAutoSave()
         }
+    }
+
+    /**
+     * Debounced auto-save for the share-capture flow: persists the current edits
+     * (and enriched data) without navigating away, so backing out or closing never
+     * loses changes. Only the latest change is written — a new edit cancels the
+     * pending write. No-op when the screen wasn't opened from a share.
+     */
+    private fun scheduleAutoSave() {
+        if (!isShareCapture) return
+        autoSaveJob?.cancel()
+        autoSaveJob = viewModelScope.launch {
+            delay(AUTO_SAVE_DEBOUNCE_MS)
+            writeBookmark()
+        }
+    }
+
+    /**
+     * Persists any pending auto-save immediately. Called when the screen stops so
+     * an edit made within the debounce window still survives an abrupt exit.
+     */
+    fun flushAutoSave() {
+        if (!isShareCapture) return
+        autoSaveJob?.cancel()
+        viewModelScope.launch { writeBookmark() }
     }
 
     fun saveBookmark() {
         viewModelScope.launch {
+            autoSaveJob?.cancel()
+            writeBookmark()
+            _uiState.update {
+                it.copy(
+                    isBookmarkSaved = true
+                )
+            }
+        }
+    }
+
+    /**
+     * Writes the current UI state to the repository without any navigation side
+     * effects. Shared by explicit Save and auto-save. Creating an image attachment
+     * repoints [AddEditBookmarkUiState.selectedImageUri] at the stored attachment so
+     * repeated auto-saves don't recreate it.
+     */
+    private suspend fun writeBookmark() {
             // Process image attachment if present
             var imageAttachmentId: UUID? = null
 
@@ -404,6 +468,11 @@ class AddEditBookmarkViewModel @Inject constructor(
                         // Save the attachment
                         attachmentRepository.create(attachment)
                         imageAttachmentId = attachmentId
+                        // Repoint the UI at the stored attachment so a later
+                        // auto-save reuses it instead of creating a duplicate.
+                        _uiState.update {
+                            it.copy(selectedImageUri = "content://org.hahn.maakmai.attachment/$attachmentId")
+                        }
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -434,12 +503,6 @@ class AddEditBookmarkViewModel @Inject constructor(
             } else {
                 bookmarkRepository.updateBookmark(bookmark)
             }
-            _uiState.update {
-                it.copy(
-                    isBookmarkSaved = true
-                )
-            }
-        }
     }
 
     fun deleteBookmark() {
@@ -448,6 +511,7 @@ class AddEditBookmarkViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            autoSaveJob?.cancel()
             bookmarkRepository.deleteBookmark(bookmarkId)
             _uiState.update {
                 it.copy(
@@ -468,6 +532,7 @@ class AddEditBookmarkViewModel @Inject constructor(
                 tagsPrioritised = state.tagsPrioritised.map { if (it.tag == tag.tag) it.copy(isSelected = !isSelected) else it }
             )
         }
+        scheduleAutoSave()
     }
 
     /**
@@ -481,6 +546,7 @@ class AddEditBookmarkViewModel @Inject constructor(
                 groupedFolderTags = state.groupedFolderTags.map { if (it.prefix == group.prefix) it.copy(tags = it.tags.map { if (it.tag == tag.tag) it.copy(isSelected = !isSelected) else it }) else it }
             )
         }
+        scheduleAutoSave()
     }
 
     /**
@@ -488,9 +554,11 @@ class AddEditBookmarkViewModel @Inject constructor(
      * @param uri The URI of the selected image
      */
     fun updateSelectedImageUri(uri: String?) {
+        imageEdited = true
         _uiState.update {
             it.copy(selectedImageUri = uri)
         }
+        scheduleAutoSave()
     }
 
     /**
@@ -519,5 +587,9 @@ class AddEditBookmarkViewModel @Inject constructor(
             e.printStackTrace()
             null
         }
+    }
+
+    private companion object {
+        const val AUTO_SAVE_DEBOUNCE_MS = 500L
     }
 }

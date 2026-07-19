@@ -74,6 +74,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
@@ -95,6 +97,12 @@ fun AddEditBookmarkScreen(
 ) {
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Persist any pending auto-save (share-capture flow) when the screen stops, so
+    // an edit made just before backing out or swiping away still survives.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        viewModel.flushAutoSave()
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -128,6 +136,7 @@ fun AddEditBookmarkScreen(
             title = uiState.title,
             description = uiState.description,
             url = uiState.url,
+            isEnriching = uiState.isEnriching,
             tags = uiState.tags,
             folders = uiState.folders,
             selectedFolderPath = uiState.selectedFolderPath,
@@ -192,6 +201,7 @@ private fun AddEditBookmarkContent(
     title: String,
     description: String,
     url: String?,
+    isEnriching: Boolean = false,
     tags: String,
     onTitleChanged: (String) -> Unit = {},
     onDescriptionChanged: (String) -> Unit = {},
@@ -264,6 +274,14 @@ private fun AddEditBookmarkContent(
             textStyle = MaterialTheme.typography.bodyLarge,
             singleLine = true,
             colors = textFieldColors,
+            trailingIcon = if (isEnriching) {
+                {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                }
+            } else null,
             keyboardOptions = KeyboardOptions(
                 imeAction = ImeAction.Next,
                 keyboardType = KeyboardType.Uri

@@ -17,13 +17,11 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.CoroutineScope
 import org.hahn.maakmai.MaakMaiArgs.BOOKMARK_ID_ARG
-import org.hahn.maakmai.MaakMaiArgs.BOOKMARK_TITLE_ARG
+import org.hahn.maakmai.MaakMaiArgs.SHARE_CAPTURE_ARG
 import org.hahn.maakmai.MaakMaiArgs.FOLDER_ID_ARG
 import org.hahn.maakmai.MaakMaiArgs.PARENT_PATH_ARG
 import org.hahn.maakmai.MaakMaiArgs.PATH_ARG
-import org.hahn.maakmai.MaakMaiArgs.SUBJECT_ARG
 import org.hahn.maakmai.MaakMaiArgs.TITLE_ARG
-import org.hahn.maakmai.MaakMaiArgs.URL_ARG
 import org.hahn.maakmai.addeditbookmark.AddEditBookmarkScreen
 import org.hahn.maakmai.addeditfolder.AddEditFolderScreen
 import org.hahn.maakmai.browse.BrowseScreen
@@ -74,9 +72,7 @@ fun MaakMaiNavGraph(
                 navArgument(TITLE_ARG) { type = NavType.StringType; defaultValue = "Edit Bookmark" },
                 navArgument(BOOKMARK_ID_ARG) { type = NavType.StringType; nullable = true },
                 navArgument(PATH_ARG) { type = NavType.StringType; nullable = true },
-                navArgument(URL_ARG) { type = NavType.StringType; nullable = true },
-                navArgument(SUBJECT_ARG) { type = NavType.StringType; nullable = true },
-                navArgument(BOOKMARK_TITLE_ARG) { type = NavType.StringType; nullable = true },
+                navArgument(SHARE_CAPTURE_ARG) { type = NavType.BoolType; defaultValue = false },
             )
         ) { entry ->
             AddEditBookmarkScreen(
@@ -88,7 +84,15 @@ fun MaakMaiNavGraph(
                         navController.popBackStack()
                     }
                 },
-                onBookmarkDelete = { navController.popBackStack() },
+                onBookmarkDelete = {
+                    // Discarding a just-captured share must close the share activity,
+                    // where there is nothing to pop back to.
+                    if (onEditDone != null) {
+                        onEditDone()
+                    } else {
+                        navController.popBackStack()
+                    }
+                },
                 onBack = {
                     if (onEditDone != null) {
                         onEditDone()

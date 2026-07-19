@@ -26,7 +26,13 @@ object OpenGraphUtils {
         val description: String? = null,
         val url: String? = null,
         val image: String? = null,
-        val siteName: String? = null
+        val siteName: String? = null,
+        /**
+         * The URL actually landed on after following redirects, as reported by the
+         * connection. Distinct from [url] (the `og:url` meta tag). Used to resolve
+         * redirect shorteners without a separate network round-trip.
+         */
+        val finalUrl: String? = null
     )
 
     /**
@@ -47,9 +53,13 @@ object OpenGraphUtils {
             }
 
             val responseCode = connection.responseCode
+            // The connection URL reflects the final destination after redirects.
+            val finalUrl = connection.url?.toString()
             if (responseCode != HttpURLConnection.HTTP_OK) {
                 Log.w(TAG, "HTTP error code: $responseCode for URL: $url")
-                return@withContext OpenGraphMetadata()
+                // Still report where we landed so redirect shorteners resolve even
+                // when the destination doesn't serve a 200 (e.g. a bot challenge).
+                return@withContext OpenGraphMetadata(finalUrl = finalUrl)
             }
 
             val html = connection.inputStream.use { inputStream ->
@@ -58,7 +68,7 @@ object OpenGraphUtils {
                 }
             }
 
-            parseOpenGraphMetadata(html)
+            parseOpenGraphMetadata(html).copy(finalUrl = finalUrl)
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching Open Graph metadata: ${e.message}", e)
             OpenGraphMetadata()
