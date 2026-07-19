@@ -18,6 +18,8 @@ import coil3.size.Scale
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -74,9 +76,10 @@ class AddEditBookmarkViewModel @Inject constructor(
 ) : ViewModel() {
     private val bookmarkId: UUID? = savedStateHandle.get<String?>(MaakMaiArgs.BOOKMARK_ID_ARG).let { id -> if (id.isNullOrBlank()) null else UUID.fromString(id) }
     private val path: String? = savedStateHandle[MaakMaiArgs.PATH_ARG]
-    // Only the share-capture flow opts in to OpenGraph enrichment; editing an
-    // existing bookmark must never refetch and clobber its saved fields.
-    private val shouldEnrich: Boolean = savedStateHandle.get<Boolean?>(MaakMaiArgs.ENRICH_ARG) ?: false
+    // True when the screen was opened from a share action (see shareCaptureRoute).
+    // A share capture both enriches via OpenGraph and auto-saves edits, so the user
+    // never has to tap Save; editing an existing bookmark does neither.
+    private val isShareCapture: Boolean = savedStateHandle.get<Boolean?>(MaakMaiArgs.ENRICH_ARG) ?: false
 
     // Tracks fields the user has manually edited so async enrichment never
     // overwrites them.
@@ -84,6 +87,9 @@ class AddEditBookmarkViewModel @Inject constructor(
     private var descriptionEdited = false
     private var imageEdited = false
     private var urlEdited = false
+
+    // Debounces auto-save writes so only the latest change is persisted.
+    private var autoSaveJob: Job? = null
 
     private val _uiState = MutableStateFlow(
         AddEditBookmarkUiState(
@@ -153,7 +159,7 @@ class AddEditBookmarkViewModel @Inject constructor(
                 // shorteners) for freshly-captured shares. The URL is already set
                 // above and is never nulled by this, so it is present immediately and
                 // saving mid-fetch is safe.
-                if (shouldEnrich && bookmark.url != null) {
+                if (isShareCapture && bookmark.url != null) {
                     enrichCapturedShare(bookmark.url)
                 }
             } else {
@@ -229,6 +235,10 @@ class AddEditBookmarkViewModel @Inject constructor(
                         selectedImageUri = enriched.imageUri
                     )
                 }
+
+                // Persist the enriched data (resolved URL, title, description,
+                // image) so it survives even if the user backs out without saving.
+                scheduleAutoSave()
             } finally {
                 _uiState.update { it.copy(isEnriching = false) }
             }
@@ -240,6 +250,7 @@ class AddEditBookmarkViewModel @Inject constructor(
         _uiState.update {
             it.copy(title = newTitle)
         }
+        scheduleAutoSave()
     }
 
     fun updateDescription(newDescription: String) {
@@ -247,6 +258,7 @@ class AddEditBookmarkViewModel @Inject constructor(
         _uiState.update {
             it.copy(description = newDescription)
         }
+        scheduleAutoSave()
     }
 
     fun updateUrl(newUrl: String?) {
@@ -254,12 +266,14 @@ class AddEditBookmarkViewModel @Inject constructor(
         _uiState.update {
             it.copy(url = newUrl)
         }
+        scheduleAutoSave()
     }
 
     fun updateTags(newTags: String) {
         _uiState.update {
             it.copy(tags = newTags)
         }
+        scheduleAutoSave()
     }
 
     /**
@@ -285,6 +299,7 @@ class AddEditBookmarkViewModel @Inject constructor(
 
         // Update folder tags based on the new selected folder path
         updateFolderTags()
+        scheduleAutoSave()
     }
 
     /**
@@ -338,6 +353,7 @@ class AddEditBookmarkViewModel @Inject constructor(
             it.copy(selectedFolderPath = emptyList())
         }
         updateFolderTags()
+        scheduleAutoSave()
     }
 
     fun removeLastSelectedFolder() {
@@ -347,11 +363,54 @@ class AddEditBookmarkViewModel @Inject constructor(
                 it.copy(selectedFolderPath = currentPath.dropLast(1))
             }
             updateFolderTags()
+            scheduleAutoSave()
         }
+    }
+
+    /**
+     * Debounced auto-save for the share-capture flow: persists the current edits
+     * (and enriched data) without navigating away, so backing out or closing never
+     * loses changes. Only the latest change is written — a new edit cancels the
+     * pending write. No-op when the screen wasn't opened from a share.
+     */
+    private fun scheduleAutoSave() {
+        if (!isShareCapture) return
+        autoSaveJob?.cancel()
+        autoSaveJob = viewModelScope.launch {
+            delay(AUTO_SAVE_DEBOUNCE_MS)
+            writeBookmark()
+        }
+    }
+
+    /**
+     * Persists any pending auto-save immediately. Called when the screen stops so
+     * an edit made within the debounce window still survives an abrupt exit.
+     */
+    fun flushAutoSave() {
+        if (!isShareCapture) return
+        autoSaveJob?.cancel()
+        viewModelScope.launch { writeBookmark() }
     }
 
     fun saveBookmark() {
         viewModelScope.launch {
+            autoSaveJob?.cancel()
+            writeBookmark()
+            _uiState.update {
+                it.copy(
+                    isBookmarkSaved = true
+                )
+            }
+        }
+    }
+
+    /**
+     * Writes the current UI state to the repository without any navigation side
+     * effects. Shared by explicit Save and auto-save. Creating an image attachment
+     * repoints [AddEditBookmarkUiState.selectedImageUri] at the stored attachment so
+     * repeated auto-saves don't recreate it.
+     */
+    private suspend fun writeBookmark() {
             // Process image attachment if present
             var imageAttachmentId: UUID? = null
 
@@ -407,6 +466,11 @@ class AddEditBookmarkViewModel @Inject constructor(
                         // Save the attachment
                         attachmentRepository.create(attachment)
                         imageAttachmentId = attachmentId
+                        // Repoint the UI at the stored attachment so a later
+                        // auto-save reuses it instead of creating a duplicate.
+                        _uiState.update {
+                            it.copy(selectedImageUri = "content://org.hahn.maakmai.attachment/$attachmentId")
+                        }
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -436,12 +500,6 @@ class AddEditBookmarkViewModel @Inject constructor(
             } else {
                 bookmarkRepository.updateBookmark(bookmark)
             }
-            _uiState.update {
-                it.copy(
-                    isBookmarkSaved = true
-                )
-            }
-        }
     }
 
     fun deleteBookmark() {
@@ -450,6 +508,7 @@ class AddEditBookmarkViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            autoSaveJob?.cancel()
             bookmarkRepository.deleteBookmark(bookmarkId)
             _uiState.update {
                 it.copy(
@@ -470,6 +529,7 @@ class AddEditBookmarkViewModel @Inject constructor(
                 tagsPrioritised = state.tagsPrioritised.map { if (it.tag == tag.tag) it.copy(isSelected = !isSelected) else it }
             )
         }
+        scheduleAutoSave()
     }
 
     /**
@@ -483,6 +543,7 @@ class AddEditBookmarkViewModel @Inject constructor(
                 groupedFolderTags = state.groupedFolderTags.map { if (it.prefix == group.prefix) it.copy(tags = it.tags.map { if (it.tag == tag.tag) it.copy(isSelected = !isSelected) else it }) else it }
             )
         }
+        scheduleAutoSave()
     }
 
     /**
@@ -494,6 +555,7 @@ class AddEditBookmarkViewModel @Inject constructor(
         _uiState.update {
             it.copy(selectedImageUri = uri)
         }
+        scheduleAutoSave()
     }
 
     /**
@@ -522,5 +584,9 @@ class AddEditBookmarkViewModel @Inject constructor(
             e.printStackTrace()
             null
         }
+    }
+
+    private companion object {
+        const val AUTO_SAVE_DEBOUNCE_MS = 500L
     }
 }
