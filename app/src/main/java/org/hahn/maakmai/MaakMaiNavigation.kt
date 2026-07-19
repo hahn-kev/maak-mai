@@ -3,7 +3,7 @@ package org.hahn.maakmai
 import androidx.navigation.NavController
 import androidx.navigation.NavOptions
 import org.hahn.maakmai.MaakMaiArgs.BOOKMARK_ID_ARG
-import org.hahn.maakmai.MaakMaiArgs.ENRICH_ARG
+import org.hahn.maakmai.MaakMaiArgs.SHARE_CAPTURE_ARG
 import org.hahn.maakmai.MaakMaiArgs.FOLDER_ID_ARG
 import org.hahn.maakmai.MaakMaiArgs.PARENT_PATH_ARG
 import org.hahn.maakmai.MaakMaiArgs.PATH_ARG
@@ -25,12 +25,12 @@ object MaakMaiArgs {
     const val TITLE_ARG = "title";
     const val FOLDER_ID_ARG = "folderId";
     const val PARENT_PATH_ARG = "parentPath";
-    const val ENRICH_ARG = "enrich";
+    const val SHARE_CAPTURE_ARG = "shareCapture";
 }
 
 object MaakMaiDestinations {
     const val BROWSE_ROUTE = "$BROWSE_SCREEN?$PATH_ARG={$PATH_ARG}"
-    const val ADD_EDIT_BOOKMARK_ROUTE = "$ADD_EDIT_BOOKMARK_SCREEN/{$TITLE_ARG}?$BOOKMARK_ID_ARG={$BOOKMARK_ID_ARG}&$PATH_ARG={$PATH_ARG}&$ENRICH_ARG={$ENRICH_ARG}"
+    const val ADD_EDIT_BOOKMARK_ROUTE = "$ADD_EDIT_BOOKMARK_SCREEN/{$TITLE_ARG}?$BOOKMARK_ID_ARG={$BOOKMARK_ID_ARG}&$PATH_ARG={$PATH_ARG}&$SHARE_CAPTURE_ARG={$SHARE_CAPTURE_ARG}"
     const val ADD_EDIT_FOLDER_ROUTE = "$ADD_EDIT_FOLDER_SCREEN/{$TITLE_ARG}?$FOLDER_ID_ARG={$FOLDER_ID_ARG}&$PARENT_PATH_ARG={$PARENT_PATH_ARG}"
 }
 
@@ -70,11 +70,12 @@ class MaakMaiNavigationActions(private val navController: NavController) {
      * persisted record, so it is never round-tripped through (and corrupted by)
      * a navigation route string.
      *
-     * `enrich=true` asks the editor to asynchronously enrich the captured record
-     * with OpenGraph metadata — only the share flow opts in, so editing an existing
-     * bookmark never triggers a metadata refetch that could clobber saved fields.
+     * `shareCapture=true` marks the screen as opened from a share, so the editor
+     * asynchronously enriches the record with OpenGraph metadata AND auto-saves
+     * edits. Editing an existing bookmark never sets it, so it neither refetches
+     * (clobbering saved fields) nor auto-saves.
      */
     fun shareCaptureRoute(bookmarkId: UUID): String {
-        return "$ADD_EDIT_BOOKMARK_SCREEN/Add Bookmark?$BOOKMARK_ID_ARG=$bookmarkId&$ENRICH_ARG=true"
+        return "$ADD_EDIT_BOOKMARK_SCREEN/Add Bookmark?$BOOKMARK_ID_ARG=$bookmarkId&$SHARE_CAPTURE_ARG=true"
     }
 }

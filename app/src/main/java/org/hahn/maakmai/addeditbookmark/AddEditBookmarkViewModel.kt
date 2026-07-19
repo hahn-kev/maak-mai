@@ -79,7 +79,7 @@ class AddEditBookmarkViewModel @Inject constructor(
     // True when the screen was opened from a share action (see shareCaptureRoute).
     // A share capture both enriches via OpenGraph and auto-saves edits, so the user
     // never has to tap Save; editing an existing bookmark does neither.
-    private val isShareCapture: Boolean = savedStateHandle.get<Boolean?>(MaakMaiArgs.ENRICH_ARG) ?: false
+    private val isShareCapture: Boolean = savedStateHandle.get<Boolean?>(MaakMaiArgs.SHARE_CAPTURE_ARG) ?: false
 
     // Tracks fields the user has manually edited so async enrichment never
     // overwrites them.

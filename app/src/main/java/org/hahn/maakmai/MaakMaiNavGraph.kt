@@ -17,7 +17,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.CoroutineScope
 import org.hahn.maakmai.MaakMaiArgs.BOOKMARK_ID_ARG
-import org.hahn.maakmai.MaakMaiArgs.ENRICH_ARG
+import org.hahn.maakmai.MaakMaiArgs.SHARE_CAPTURE_ARG
 import org.hahn.maakmai.MaakMaiArgs.FOLDER_ID_ARG
 import org.hahn.maakmai.MaakMaiArgs.PARENT_PATH_ARG
 import org.hahn.maakmai.MaakMaiArgs.PATH_ARG
@@ -72,7 +72,7 @@ fun MaakMaiNavGraph(
                 navArgument(TITLE_ARG) { type = NavType.StringType; defaultValue = "Edit Bookmark" },
                 navArgument(BOOKMARK_ID_ARG) { type = NavType.StringType; nullable = true },
                 navArgument(PATH_ARG) { type = NavType.StringType; nullable = true },
-                navArgument(ENRICH_ARG) { type = NavType.BoolType; defaultValue = false },
+                navArgument(SHARE_CAPTURE_ARG) { type = NavType.BoolType; defaultValue = false },
             )
         ) { entry ->
             AddEditBookmarkScreen(
