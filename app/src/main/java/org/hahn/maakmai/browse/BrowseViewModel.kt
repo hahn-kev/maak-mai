@@ -83,7 +83,8 @@ class BrowseViewModel @Inject constructor(
             filteredBookmarks.filter { bookmark ->
                 bookmark.title?.contains(searchQuery, ignoreCase = true) == true ||
                 bookmark.url?.contains(searchQuery, ignoreCase = true) == true ||
-                bookmark.description?.contains(searchQuery, ignoreCase = true) == true
+                bookmark.description?.contains(searchQuery, ignoreCase = true) == true ||
+                bookmark.tags.any { tag -> tag.contains(searchQuery, ignoreCase = true) }
             }
         } else {
             filteredBookmarks

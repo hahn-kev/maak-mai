@@ -33,8 +33,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkAdd
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -113,6 +116,7 @@ fun BrowseScreen(
     // State for search dialog
     var showSearchDialog by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
     var searchText by remember {
         mutableStateOf(
             TextFieldValue(
@@ -219,8 +223,32 @@ fun BrowseScreen(
                                 }
                             }
                         }
-                        Switch(uiState.showAll, onCheckedChange = viewModel::setShowAll, modifier = Modifier.padding(end = 8.dp))
-                        Text(text = "Show all", style = MaterialTheme.typography.bodySmall)
+                        Box {
+                            IconButton(onClick = { showOverflowMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "More options"
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showOverflowMenu,
+                                onDismissRequest = { showOverflowMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Show all") },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = if (uiState.showAll) Icons.Default.Check else Icons.Default.CheckBoxOutlineBlank,
+                                            contentDescription = null
+                                        )
+                                    },
+                                    onClick = {
+                                        viewModel.setShowAll(!uiState.showAll)
+                                        showOverflowMenu = false
+                                    }
+                                )
+                            }
+                        }
                     }
                 },
                 navigationIcon = {
