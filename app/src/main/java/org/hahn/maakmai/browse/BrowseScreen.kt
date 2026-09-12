@@ -106,6 +106,7 @@ fun BrowseScreen(
     onEditBookmark: (UUID) -> Unit,
     onAddFolder: () -> Unit,
     onEditFolder: (UUID) -> Unit,
+    onSettingsClick: () -> Unit,
     onBack: () -> Unit,
     viewModel: BrowseViewModel = hiltViewModel(),
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
@@ -244,6 +245,13 @@ fun BrowseScreen(
                                     },
                                     onClick = {
                                         viewModel.setShowAll(!uiState.showAll)
+                                        showOverflowMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Settings") },
+                                    onClick = {
+                                        onSettingsClick()
                                         showOverflowMenu = false
                                     }
                                 )

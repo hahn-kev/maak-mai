@@ -25,6 +25,7 @@ import org.hahn.maakmai.MaakMaiArgs.TITLE_ARG
 import org.hahn.maakmai.addeditbookmark.AddEditBookmarkScreen
 import org.hahn.maakmai.addeditfolder.AddEditFolderScreen
 import org.hahn.maakmai.browse.BrowseScreen
+import org.hahn.maakmai.settings.SettingsScreen
 
 @Composable
 fun MaakMaiNavGraph(
@@ -64,6 +65,12 @@ fun MaakMaiNavGraph(
                 onEditFolder = { folderId ->
                     navActions.navigateToEditFolder(folderId, currentPath, null)
                 },
+                onSettingsClick = { navActions.navigateToSettings() },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(MaakMaiDestinations.SETTINGS_ROUTE) {
+            SettingsScreen(
                 onBack = { navController.popBackStack() }
             )
         }
