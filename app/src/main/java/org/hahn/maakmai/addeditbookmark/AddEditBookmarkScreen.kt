@@ -14,6 +14,14 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -158,9 +166,18 @@ fun AddEditBookmarkScreen(
             groupedFolderTags = uiState.groupedFolderTags,
             selectedImageUri = uiState.selectedImageUri,
             onImageSelected = viewModel::updateSelectedImageUri,
+            onPickFromPage = viewModel::loadPageImages,
             onDeleteClick = { showDeleteConfirmation = true },
             modifier = Modifier.padding(paddingValues)
         )
+
+        uiState.pageImages?.let { pageImages ->
+            PageImagePickerDialog(
+                state = pageImages,
+                onPick = viewModel::pickPageImage,
+                onDismiss = viewModel::dismissPageImages
+            )
+        }
 
         // Delete confirmation dialog
         if (showDeleteConfirmation) {
@@ -225,6 +242,7 @@ private fun AddEditBookmarkContent(
     groupedFolderTags: List<TagGroup> = emptyList(),
     selectedImageUri: String? = null,
     onImageSelected: (String?) -> Unit = {},
+    onPickFromPage: () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -333,6 +351,8 @@ private fun AddEditBookmarkContent(
         ImagePickerAndPreview(
             selectedImageUri = selectedImageUri,
             onImageSelected = onImageSelected,
+            canPickFromPage = !url.isNullOrBlank(),
+            onPickFromPage = onPickFromPage,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -521,6 +541,8 @@ private fun FolderTagSelector(
 private fun ImagePickerAndPreview(
     selectedImageUri: String?,
     onImageSelected: (String?) -> Unit,
+    canPickFromPage: Boolean,
+    onPickFromPage: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -607,20 +629,111 @@ private fun ImagePickerAndPreview(
             }
         }
 
-        // Button to clear selected image
-        if (selectedImageUri != null) {
-            TextButton(
-                onClick = { onImageSelected(null) },
-                modifier = Modifier.align(Alignment.End)
-            ) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            TextButton(onClick = onPickFromPage, enabled = canPickFromPage) {
                 Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Clear image",
+                    imageVector = Icons.Default.Language,
+                    contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Clear image")
+                Text("Pick from page")
             }
+            Spacer(modifier = Modifier.weight(1f))
+            // Button to clear selected image
+            if (selectedImageUri != null) {
+                TextButton(onClick = { onImageSelected(null) }) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Clear image",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Clear image")
+                }
+            }
+        }
+    }
+}
+
+/** Images smaller than this on both sides are icons or badges, not a bookmark's picture. */
+private const val MIN_PAGE_IMAGE_PX = 100
+
+@Composable
+private fun PageImagePickerDialog(
+    state: PageImagesState,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.85f)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Pick an image", style = MaterialTheme.typography.titleLarge)
+                Spacer(modifier = Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    when (state) {
+                        PageImagesState.Loading -> CircularProgressIndicator()
+                        PageImagesState.Failed -> Text("Couldn't load the page.")
+                        is PageImagesState.Loaded -> PageImageGrid(state.urls, onPick)
+                    }
+                }
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                    Text("Cancel")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PageImageGrid(urls: List<String>, onPick: (String) -> Unit) {
+    // Images that fail to load or turn out to be tiny are dropped as they resolve
+    val hidden = remember(urls) { mutableStateListOf<String>() }
+    val visible = urls.filter { it !in hidden }
+    if (visible.isEmpty()) {
+        Text("No images found on this page.")
+        return
+    }
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 110.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        items(visible, key = { it }) { url ->
+            AsyncImage(
+                model = url,
+                contentDescription = "Page image",
+                contentScale = ContentScale.Crop,
+                onState = { imageState ->
+                    when (imageState) {
+                        is AsyncImagePainter.State.Error -> hidden += url
+                        is AsyncImagePainter.State.Success -> {
+                            val image = imageState.result.image
+                            if (image.width < MIN_PAGE_IMAGE_PX && image.height < MIN_PAGE_IMAGE_PX) hidden += url
+                        }
+                        else -> Unit
+                    }
+                },
+                modifier = Modifier
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable { onPick(url) }
+            )
         }
     }
 }

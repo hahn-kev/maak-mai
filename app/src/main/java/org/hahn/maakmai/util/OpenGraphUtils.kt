@@ -1,22 +1,11 @@
 package org.hahn.maakmai.util
 
 import android.text.Html
-import android.util.Log
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.net.HttpURLConnection
-import java.net.URL
-import java.nio.charset.StandardCharsets
 
 /**
  * Utility class for extracting Open Graph metadata from URLs.
  */
 object OpenGraphUtils {
-    private const val TAG = "OpenGraphUtils"
-    private const val TIMEOUT_MS = 10000
-    private const val USER_AGENT = "Mozilla/5.0 (Android) MaakMai/1.0"
 
     /**
      * Data class representing Open Graph metadata.
@@ -41,38 +30,12 @@ object OpenGraphUtils {
      * @param url The URL to fetch metadata from
      * @return OpenGraphMetadata object containing the extracted metadata
      */
-    suspend fun getOpenGraphMetadata(url: String): OpenGraphMetadata = withContext(Dispatchers.IO) {
-        try {
-            val connection = URL(url).openConnection() as HttpURLConnection
-            connection.apply {
-                connectTimeout = TIMEOUT_MS
-                readTimeout = TIMEOUT_MS
-                requestMethod = "GET"
-                setRequestProperty("User-Agent", USER_AGENT)
-                instanceFollowRedirects = true
-            }
-
-            val responseCode = connection.responseCode
-            // The connection URL reflects the final destination after redirects.
-            val finalUrl = connection.url?.toString()
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                Log.w(TAG, "HTTP error code: $responseCode for URL: $url")
-                // Still report where we landed so redirect shorteners resolve even
-                // when the destination doesn't serve a 200 (e.g. a bot challenge).
-                return@withContext OpenGraphMetadata(finalUrl = finalUrl)
-            }
-
-            val html = connection.inputStream.use { inputStream ->
-                BufferedReader(InputStreamReader(inputStream, StandardCharsets.UTF_8)).use { reader ->
-                    reader.readText()
-                }
-            }
-
-            parseOpenGraphMetadata(html).copy(finalUrl = finalUrl)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error fetching Open Graph metadata: ${e.message}", e)
-            OpenGraphMetadata()
-        }
+    suspend fun getOpenGraphMetadata(url: String): OpenGraphMetadata {
+        val page = PageFetcher.fetch(url)
+        // Still report where we landed so redirect shorteners resolve even when the
+        // destination doesn't serve a usable page (e.g. a bot challenge).
+        val html = page.html ?: return OpenGraphMetadata(finalUrl = page.finalUrl)
+        return parseOpenGraphMetadata(html).copy(finalUrl = page.finalUrl)
     }
 
     /**

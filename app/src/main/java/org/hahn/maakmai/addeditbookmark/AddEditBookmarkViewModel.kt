@@ -40,6 +40,8 @@ import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
 import org.hahn.maakmai.util.OpenGraphEnricher
 import org.hahn.maakmai.util.OpenGraphUtils
+import org.hahn.maakmai.util.PageFetcher
+import org.hahn.maakmai.util.PageImages
 import org.hahn.maakmai.util.ShortLinks
 import org.hahn.maakmai.util.UrlTitleExtractor
 import java.io.ByteArrayOutputStream
@@ -65,8 +67,16 @@ data class AddEditBookmarkUiState(
     val folders: List<TagFolder> = listOf(),
     val tagsPrioritised: List<TagUiState> = listOf(),
     val groupedFolderTags: List<TagGroup> = listOf(),
-    val selectedImageUri: String? = null
+    val selectedImageUri: String? = null,
+    /** Images found on the bookmark's page, while the page image picker is open. */
+    val pageImages: PageImagesState? = null
 )
+
+sealed interface PageImagesState {
+    data object Loading : PageImagesState
+    data class Loaded(val urls: List<String>) : PageImagesState
+    data object Failed : PageImagesState
+}
 
 data class TagUiState(val tag: String, val isSelected: Boolean = false, val label: String? = null)
 
@@ -521,6 +531,32 @@ class AddEditBookmarkViewModel @Inject constructor(
             )
         }
         scheduleAutoSave()
+    }
+
+    /** Fetches the bookmark's page and lists its images for the user to pick from. */
+    fun loadPageImages() {
+        val url = uiState.value.url?.trim()?.takeIf { it.isNotEmpty() } ?: return
+        _uiState.update { it.copy(pageImages = PageImagesState.Loading) }
+        viewModelScope.launch {
+            val page = PageFetcher.fetch(url)
+            val html = page.html
+            val state = if (html == null) {
+                PageImagesState.Failed
+            } else {
+                PageImagesState.Loaded(PageImages.extract(html, page.finalUrl ?: url))
+            }
+            // Ignore the result if the picker was closed while loading
+            _uiState.update { if (it.pageImages == null) it else it.copy(pageImages = state) }
+        }
+    }
+
+    fun pickPageImage(imageUrl: String) {
+        _uiState.update { it.copy(pageImages = null) }
+        updateSelectedImageUri(imageUrl)
+    }
+
+    fun dismissPageImages() {
+        _uiState.update { it.copy(pageImages = null) }
     }
 
     /**
