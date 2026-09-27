@@ -12,6 +12,7 @@ import org.hahn.maakmai.MaakMaiScreens.ADD_EDIT_BOOKMARK_SCREEN
 import org.hahn.maakmai.MaakMaiScreens.ADD_EDIT_FOLDER_SCREEN
 import org.hahn.maakmai.MaakMaiScreens.BROWSE_SCREEN
 import org.hahn.maakmai.MaakMaiScreens.SETTINGS_SCREEN
+import org.hahn.maakmai.MaakMaiScreens.TAGS_SCREEN
 import java.util.UUID
 
 private object MaakMaiScreens {
@@ -19,6 +20,7 @@ private object MaakMaiScreens {
     const val ADD_EDIT_BOOKMARK_SCREEN = "addEditBookmark"
     const val ADD_EDIT_FOLDER_SCREEN = "addEditFolder"
     const val SETTINGS_SCREEN = "settings"
+    const val TAGS_SCREEN = "tags"
 }
 
 object MaakMaiArgs {
@@ -35,6 +37,7 @@ object MaakMaiDestinations {
     const val ADD_EDIT_BOOKMARK_ROUTE = "$ADD_EDIT_BOOKMARK_SCREEN/{$TITLE_ARG}?$BOOKMARK_ID_ARG={$BOOKMARK_ID_ARG}&$PATH_ARG={$PATH_ARG}&$SHARE_CAPTURE_ARG={$SHARE_CAPTURE_ARG}"
     const val ADD_EDIT_FOLDER_ROUTE = "$ADD_EDIT_FOLDER_SCREEN/{$TITLE_ARG}?$FOLDER_ID_ARG={$FOLDER_ID_ARG}&$PARENT_PATH_ARG={$PARENT_PATH_ARG}"
     const val SETTINGS_ROUTE = SETTINGS_SCREEN
+    const val TAGS_ROUTE = TAGS_SCREEN
 }
 
 class MaakMaiNavigationActions(private val navController: NavController) {
@@ -69,6 +72,10 @@ class MaakMaiNavigationActions(private val navController: NavController) {
 
     fun navigateToSettings() {
         navController.navigate(SETTINGS_SCREEN)
+    }
+
+    fun navigateToTags() {
+        navController.navigate(TAGS_SCREEN)
     }
 
     /**

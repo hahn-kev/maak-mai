@@ -52,6 +52,10 @@ class FolderRepositoryRoom @Inject constructor(
         return buildTagFolders(folderDao.getAllFolders())
     }
 
+    override suspend fun getAllFolders(): List<Folder> {
+        return folderDao.getAllFolders()
+    }
+
     override fun getFoldersStream(): Flow<List<TagFolder>> {
         return folderDao.getFoldersStream().map { folders ->
             buildTagFolders(folders)

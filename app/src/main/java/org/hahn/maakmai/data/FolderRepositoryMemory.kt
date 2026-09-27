@@ -133,6 +133,10 @@ class FolderRepositoryMemory @Inject constructor() : FolderRepository {
         return buildTagFolders()
     }
 
+    override suspend fun getAllFolders(): List<Folder> {
+        return folders.values.toList()
+    }
+
     override fun getFoldersStream(): Flow<List<TagFolder>> {
         return _foldersFlow.asStateFlow()
     }

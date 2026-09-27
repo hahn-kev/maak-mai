@@ -58,6 +58,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import okhttp3.internal.toHexString
+import org.hahn.maakmai.tags.MergeTagConfirmDialog
 import org.hahn.maakmai.ui.theme.DefaultFolderColorStr
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -137,6 +138,22 @@ fun AddEditFolderScreen(
                     }
                 }
             )
+        }
+
+        uiState.pendingMerge?.let { pending ->
+            MergeTagConfirmDialog(
+                oldTag = pending.oldTag,
+                newTag = pending.newTag,
+                onConfirm = viewModel::confirmMerge,
+                onDismiss = viewModel::cancelMerge
+            )
+        }
+
+        uiState.errorMessage?.let { message ->
+            LaunchedEffect(message) {
+                snackbarHostState.showSnackbar(message)
+                viewModel.errorShown()
+            }
         }
 
         LaunchedEffect(uiState.isFolderSaved) {

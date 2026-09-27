@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
@@ -42,6 +43,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -80,6 +82,7 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
@@ -106,6 +109,7 @@ fun BrowseScreen(
     onEditBookmark: (UUID) -> Unit,
     onAddFolder: () -> Unit,
     onEditFolder: (UUID) -> Unit,
+    onTagsClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onBack: () -> Unit,
     viewModel: BrowseViewModel = hiltViewModel(),
@@ -125,10 +129,13 @@ fun BrowseScreen(
             )
         )
     }
+    var searchShowAll by remember { mutableStateOf(true) }
 
     // Function to handle search button click
     val onSearch = {
         searchText = TextFieldValue(uiState.searchQuery, selection = TextRange(0, uiState.searchQuery.length)) // Initialize with current search query
+        // A new search includes subfolders by default; an active one keeps its current scope
+        searchShowAll = uiState.searchQuery.isEmpty() || uiState.showAll
         showSearchDialog = true
     }
     Scaffold(
@@ -249,6 +256,13 @@ fun BrowseScreen(
                                     }
                                 )
                                 DropdownMenuItem(
+                                    text = { Text("Tags") },
+                                    onClick = {
+                                        onTagsClick()
+                                        showOverflowMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
                                     text = { Text("Settings") },
                                     onClick = {
                                         onSettingsClick()
@@ -299,26 +313,42 @@ fun BrowseScreen(
 
         val onSearchSubmit = {
             viewModel.setSearchQuery(searchText.text)
-            viewModel.setShowAll(true)
+            viewModel.setShowAll(searchShowAll)
             showSearchDialog = false
         }
         AlertDialog(
             onDismissRequest = { showSearchDialog = false },
             title = { Text("Search Bookmarks") },
             text = {
-                OutlinedTextField(
-                    value = searchText,
-                    onValueChange = { searchText = it },
-                    label = { Text("Search") },
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(focusRequester),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(
-                        onSearch = { onSearchSubmit() }
+                Column {
+                    OutlinedTextField(
+                        value = searchText,
+                        onValueChange = { searchText = it },
+                        label = { Text("Search") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(
+                            onSearch = { onSearchSubmit() }
+                        )
                     )
-                )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .toggleable(
+                                value = searchShowAll,
+                                role = Role.Checkbox,
+                                onValueChange = { searchShowAll = it }
+                            )
+                            .padding(top = 8.dp)
+                    ) {
+                        Checkbox(checked = searchShowAll, onCheckedChange = null)
+                        Text("Show all", modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
             },
             confirmButton = {
                 TextButton(

@@ -13,6 +13,8 @@ interface FolderRepository {
 
     suspend fun getRootFolders(): List<TagFolder>
 
+    suspend fun getAllFolders(): List<Folder>
+
     fun getFoldersStream(): Flow<List<TagFolder>>
 
     suspend fun updateFolder(folder: Folder): Result<Unit>

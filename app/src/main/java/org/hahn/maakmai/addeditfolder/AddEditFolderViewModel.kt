@@ -13,7 +13,11 @@ import okhttp3.internal.toHexString
 import org.hahn.maakmai.MaakMaiArgs
 import org.hahn.maakmai.data.Folder
 import org.hahn.maakmai.data.FolderRepository
+import org.hahn.maakmai.data.RenameCheck
+import org.hahn.maakmai.data.TagRenamer
 import org.hahn.maakmai.model.TagFolder
+import org.hahn.maakmai.tags.PendingRename
+import org.hahn.maakmai.tags.conflictMessage
 import org.hahn.maakmai.ui.theme.DefaultFolderColorStr
 import org.hahn.maakmai.ui.theme.FolderColors
 import java.util.UUID
@@ -28,14 +32,16 @@ data class AddEditFolderUiState(
     val isFolderDeleted: Boolean = false,
     val childFolders: List<TagFolder> = emptyList(),
     val tagGroups: String = "",
-    val color: String = DefaultFolderColorStr // Default to grey
+    val color: String = DefaultFolderColorStr, // Default to grey
+    val pendingMerge: PendingRename? = null,
+    val errorMessage: String? = null
 )
 
 @HiltViewModel
 class AddEditFolderViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val folderRepository: FolderRepository,
-    private val bookmarkRepository: org.hahn.maakmai.data.BookmarkRepository
+    private val tagRenamer: TagRenamer
 ) : ViewModel() {
     private val folderId: UUID? = savedStateHandle.get<String?>(MaakMaiArgs.FOLDER_ID_ARG).let { id ->
         if (id.isNullOrBlank()) null else UUID.fromString(id)
@@ -162,45 +168,77 @@ class AddEditFolderViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            // Parse tag groups from comma-separated string
-            val tagGroupsList = uiState.value.tagGroups
-                .split(",")
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
+            val oldTag = originalTag
+            val newTag = uiState.value.tag.trim()
+            if (folderId == null || oldTag.isNullOrBlank()) {
+                writeFolder(tag = newTag, renameFrom = null)
+                return@launch
+            }
 
-            val folder = Folder(
-                id = folderId ?: UUID.randomUUID(),
-                tag = uiState.value.tag.trim(),
-                parent = parentId,
-                tagGroups = tagGroupsList,
-                color = uiState.value.color
+            // Check the rename before writing anything, so a conflict leaves the folder untouched
+            when (tagRenamer.check(oldTag, newTag)) {
+                RenameCheck.NoChange -> writeFolder(tag = newTag, renameFrom = null)
+                RenameCheck.Rename -> writeFolder(tag = oldTag, renameFrom = oldTag)
+                RenameCheck.Merge -> _uiState.update { it.copy(pendingMerge = PendingRename(oldTag, newTag)) }
+                RenameCheck.Conflict -> _uiState.update { it.copy(errorMessage = conflictMessage(newTag)) }
+            }
+        }
+    }
+
+    fun confirmMerge() {
+        val pending = uiState.value.pendingMerge ?: return
+        _uiState.update { it.copy(pendingMerge = null) }
+        viewModelScope.launch { writeFolder(tag = pending.oldTag, renameFrom = pending.oldTag) }
+    }
+
+    fun cancelMerge() {
+        _uiState.update { it.copy(pendingMerge = null) }
+    }
+
+    fun errorShown() {
+        _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    /**
+     * Saves the folder with [tag]. When [renameFrom] is set, the folder is saved under its
+     * original tag and then [TagRenamer] renames that tag everywhere, this folder included.
+     */
+    private suspend fun writeFolder(tag: String, renameFrom: String?) {
+        // Parse tag groups from comma-separated string
+        val tagGroupsList = uiState.value.tagGroups
+            .split(",")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+
+        val folder = Folder(
+            id = folderId ?: UUID.randomUUID(),
+            tag = tag,
+            parent = parentId,
+            tagGroups = tagGroupsList,
+            color = uiState.value.color
+        )
+
+        val result = if (folderId == null) {
+            folderRepository.createFolder(folder)
+        } else {
+            folderRepository.updateFolder(folder)
+        }
+        if (result.isFailure) return
+
+        if (renameFrom != null) {
+            val newTag = uiState.value.tag.trim()
+            val renamed = tagRenamer.rename(renameFrom, newTag)
+            if (renamed.isFailure) {
+                _uiState.update { it.copy(errorMessage = conflictMessage(newTag)) }
+                return
+            }
+            originalTag = newTag
+        }
+
+        _uiState.update {
+            it.copy(
+                isFolderSaved = true
             )
-
-            val result = if (folderId == null) {
-                folderRepository.createFolder(folder)
-            } else {
-                folderRepository.updateFolder(folder)
-            }
-
-            if (result.isSuccess) {
-                // If this was an update and the tag changed, rename the tag in bookmarks
-                if (folderId != null) {
-                    val oldTag = originalTag
-                    val newTag = folder.tag
-                    if (!oldTag.isNullOrBlank() && !newTag.equals(oldTag, ignoreCase = true)) {
-                        // Best effort: update bookmarks to reflect the folder's new tag
-                        bookmarkRepository.renameTag(oldTag, newTag)
-                        // Update originalTag to the new value to avoid repeat renames in the same session
-                        originalTag = newTag
-                    }
-                }
-
-                _uiState.update {
-                    it.copy(
-                        isFolderSaved = true
-                    )
-                }
-            }
         }
     }
 
