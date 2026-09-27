@@ -29,3 +29,9 @@ data class Attachment(
         return result
     }
 }
+
+/** An attachment's id and data size, without loading the data. */
+data class AttachmentInfo(
+    val id: UUID,
+    val size: Int
+)

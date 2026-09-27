@@ -31,6 +31,10 @@ import org.hahn.maakmai.MaakMaiArgs
 import org.hahn.maakmai.data.AttachmentRepository
 import org.hahn.maakmai.data.BookmarkRepository
 import org.hahn.maakmai.data.FolderRepository
+import org.hahn.maakmai.images.AttachmentImages
+import org.hahn.maakmai.images.EncodedImage
+import org.hahn.maakmai.images.MAX_IMAGE_DIMENSION
+import org.hahn.maakmai.images.shrinkAndEncode
 import org.hahn.maakmai.model.Attachment
 import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
@@ -133,16 +137,7 @@ class AddEditBookmarkViewModel @Inject constructor(
         viewModelScope.launch {
             val bookmark = bookmarkRepository.getBookmark(bookmarkId)
             if (bookmark != null) {
-                // Load image attachment if it exists
-                var imageUri: String? = null
-                if (bookmark.imageAttachmentId != null) {
-                    try {
-                        // Create a content URI for the attachment
-                        imageUri = "content://org.hahn.maakmai.attachment/${bookmark.imageAttachmentId}"
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
+                val imageUri = bookmark.imageAttachmentId?.let(AttachmentImages::uriFor)
 
                 _uiState.update {
                     it.copy(
@@ -411,74 +406,12 @@ class AddEditBookmarkViewModel @Inject constructor(
      * repeated auto-saves don't recreate it.
      */
     private suspend fun writeBookmark() {
-            // Process image attachment if present
-            var imageAttachmentId: UUID? = null
-
-            // Track image dimensions if we create or keep an image
-            var imageWidth: Int? = null
-            var imageHeight: Int? = null
             var createdAt = System.currentTimeMillis()
-
-            // Check if we're editing an existing bookmark
-            if (bookmarkId != null) {
-                // Get the existing bookmark to check for an existing image attachment
-                val existingBookmark = bookmarkRepository.getBookmark(bookmarkId)
-                val existingAttachmentId = existingBookmark?.imageAttachmentId
-                imageWidth = existingBookmark?.imageWidth
-                imageHeight = existingBookmark?.imageHeight
-                createdAt = existingBookmark?.createdAt ?: createdAt
-
-                // If the URI has changed and there was an existing attachment, delete it
-                if (existingAttachmentId != null && 
-                    uiState.value.selectedImageUri != "content://org.hahn.maakmai.attachment/$existingAttachmentId") {
-                    try {
-                        attachmentRepository.delete(existingAttachmentId)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
-
-                // If the URI hasn't changed and there was an existing attachment, keep using it
-                if (existingAttachmentId != null && 
-                    uiState.value.selectedImageUri == "content://org.hahn.maakmai.attachment/$existingAttachmentId") {
-                    imageAttachmentId = existingAttachmentId
-                }
+            val existingBookmark = bookmarkId?.let { bookmarkRepository.getBookmark(it) }
+            if (existingBookmark != null) {
+                createdAt = existingBookmark.createdAt
             }
-
-            // If we have a selected image URI and it's not already an attachment URI (or we need to create a new one)
-            if (uiState.value.selectedImageUri != null && imageAttachmentId == null && 
-                !uiState.value.selectedImageUri!!.startsWith("content://org.hahn.maakmai.attachment/")) {
-                try {
-                    val uri = Uri.parse(uiState.value.selectedImageUri)
-
-                    // Use helper to load image bytes and dimensions
-                    val loaded = loadImageBytesAndSize(uri)
-                    if (loaded != null) {
-                        val (imageData, w, h) = loaded
-                        imageWidth = w
-                        imageHeight = h
-
-                        // Create a new attachment with the image data
-                        val attachmentId = UUID.randomUUID()
-                        val attachment = Attachment(
-                            id = attachmentId,
-                            data = imageData,
-                            title = "Image for ${uiState.value.title}"
-                        )
-                        // Save the attachment
-                        attachmentRepository.create(attachment)
-                        imageAttachmentId = attachmentId
-                        // Repoint the UI at the stored attachment so a later
-                        // auto-save reuses it instead of creating a duplicate.
-                        _uiState.update {
-                            it.copy(selectedImageUri = "content://org.hahn.maakmai.attachment/$attachmentId")
-                        }
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    // Continue without the image if there's an error
-                }
-            }
+            val image = resolveImage(existingBookmark)
 
             val folderTags = uiState.value.selectedFolderPath.map { it.tag }
             val priorityTags = uiState.value.tagsPrioritised.filter { it.isSelected }.map { it.tag }
@@ -493,9 +426,9 @@ class AddEditBookmarkViewModel @Inject constructor(
                     description = uiState.value.description,
                     url = uiState.value.url,
                     tags = (rawTags + folderTags + priorityTags + selectedFolderTags).distinct(),
-                    imageAttachmentId = imageAttachmentId,
-                    imageWidth = imageWidth,
-                    imageHeight = imageHeight,
+                    imageAttachmentId = image?.id,
+                    imageWidth = image?.width,
+                    imageHeight = image?.height,
                     createdAt = createdAt
                 )
             if (bookmarkId == null) {
@@ -503,6 +436,45 @@ class AddEditBookmarkViewModel @Inject constructor(
             } else {
                 bookmarkRepository.updateBookmark(bookmark)
             }
+
+            // Only drop the old image once the bookmark points at its replacement
+            val oldAttachmentId = existingBookmark?.imageAttachmentId
+            if (oldAttachmentId != null && oldAttachmentId != image?.id) {
+                attachmentRepository.delete(oldAttachmentId)
+            }
+    }
+
+    private data class StoredImage(val id: UUID, val width: Int?, val height: Int?)
+
+    // The attachment most recently created by this screen, so repeated saves reuse it
+    private var createdImage: StoredImage? = null
+
+    /**
+     * Works out which stored image the bookmark should point at, storing a newly
+     * picked or fetched image first. If a new image can't be loaded, the existing one is kept.
+     */
+    private suspend fun resolveImage(existing: Bookmark?): StoredImage? {
+        val selected = uiState.value.selectedImageUri ?: return null
+        val existingImage = existing?.imageAttachmentId?.let {
+            StoredImage(it, existing.imageWidth, existing.imageHeight)
+        }
+
+        val storedId = AttachmentImages.idFrom(selected)
+        if (storedId != null) {
+            return listOfNotNull(existingImage, createdImage).firstOrNull { it.id == storedId }
+                ?: StoredImage(storedId, null, null)
+        }
+
+        val encoded = loadAndShrink(Uri.parse(selected)) ?: return existingImage
+        val attachmentId = UUID.randomUUID()
+        attachmentRepository.create(
+            Attachment(id = attachmentId, data = encoded.bytes, title = "Image for ${uiState.value.title}")
+        )
+        val stored = StoredImage(attachmentId, encoded.width, encoded.height)
+        createdImage = stored
+        // Repoint the UI at the stored attachment so a later auto-save reuses it
+        _uiState.update { it.copy(selectedImageUri = AttachmentImages.uriFor(attachmentId)) }
+        return stored
     }
 
     fun deleteBookmark() {
@@ -512,7 +484,9 @@ class AddEditBookmarkViewModel @Inject constructor(
 
         viewModelScope.launch {
             autoSaveJob?.cancel()
+            val attachmentId = bookmarkRepository.getBookmark(bookmarkId)?.imageAttachmentId
             bookmarkRepository.deleteBookmark(bookmarkId)
+            attachmentId?.let { attachmentRepository.delete(it) }
             _uiState.update {
                 it.copy(
                     isBookmarkDeleted = true
@@ -562,27 +536,21 @@ class AddEditBookmarkViewModel @Inject constructor(
     }
 
     /**
-     * Loads an image via Coil and returns its compressed bytes and dimensions.
-     * @param uri The source image URI.
-     * @return Triple<bytes, width, height> or null if loading/conversion fails.
+     * Loads an image via Coil, scaled down to [MAX_IMAGE_DIMENSION], and encodes it for storage.
+     * Returns null if the image can't be loaded.
      */
-    private suspend fun loadImageBytesAndSize(uri: Uri): Triple<ByteArray, Int, Int>? = withContext(Dispatchers.IO) {
+    private suspend fun loadAndShrink(uri: Uri): EncodedImage? = withContext(Dispatchers.IO) {
         try {
-            val imageLoader = SingletonImageLoader.get(context)
             val request = ImageRequest.Builder(context)
                 .data(uri)
+                // Without a size Coil decodes at full resolution. Inexact lets it decode
+                // cheaply at up to twice the size; shrinkAndEncode then scales exactly.
+                .size(MAX_IMAGE_DIMENSION)
+                .precision(Precision.INEXACT)
+                .allowHardware(false)
                 .build()
-            val result = imageLoader.execute(request)
-            val image = result.image
-            if (image is BitmapImage) {
-                val bitmap = image.bitmap
-                val outputStream = ByteArrayOutputStream()
-                bitmap.compress(android.graphics.Bitmap.CompressFormat.WEBP_LOSSY, 90, outputStream)
-                val bytes = outputStream.toByteArray()
-                Triple(bytes, bitmap.width, bitmap.height)
-            } else {
-                null
-            }
+            val image = SingletonImageLoader.get(context).execute(request).image
+            (image as? BitmapImage)?.let { shrinkAndEncode(it.bitmap) }
         } catch (e: Exception) {
             e.printStackTrace()
             null

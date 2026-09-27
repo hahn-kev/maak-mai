@@ -1,18 +1,18 @@
 package org.hahn.maakmai.data
 
-import kotlinx.coroutines.flow.Flow
 import org.hahn.maakmai.model.Attachment
+import org.hahn.maakmai.model.AttachmentInfo
 import java.util.UUID
-import kotlin.uuid.Uuid
 
 interface AttachmentRepository {
     suspend fun create(attachment: Attachment)
 
-    suspend fun get(id: UUID): Attachment?
+    /** The stored image bytes, or null if there is no such attachment. */
+    suspend fun getData(id: UUID): ByteArray?
 
-    fun getStream(id: UUID): Flow<Attachment>
+    suspend fun getAllInfo(): List<AttachmentInfo>
 
-    suspend fun update(id: UUID, attachment: Attachment): Boolean
+    suspend fun replaceData(id: UUID, data: ByteArray): Boolean
 
     suspend fun delete(id: UUID): Boolean
 }

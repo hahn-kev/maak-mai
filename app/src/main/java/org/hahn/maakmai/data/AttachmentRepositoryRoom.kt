@@ -1,11 +1,14 @@
 package org.hahn.maakmai.data
 
-import kotlinx.coroutines.flow.Flow
 import org.hahn.maakmai.data.source.local.AttachmentDao
 import org.hahn.maakmai.model.Attachment
+import org.hahn.maakmai.model.AttachmentInfo
+import java.io.ByteArrayOutputStream
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private const val CHUNK_SIZE = 512 * 1024
 
 @Singleton
 class AttachmentRepositoryRoom @Inject constructor(
@@ -16,18 +19,25 @@ class AttachmentRepositoryRoom @Inject constructor(
         attachmentDao.insertAttachment(attachment)
     }
 
-    override suspend fun get(id: UUID): Attachment? {
-        return attachmentDao.getAttachmentById(id)
+    override suspend fun getData(id: UUID): ByteArray? {
+        val length = attachmentDao.getDataLength(id) ?: return null
+        val out = ByteArrayOutputStream(length)
+        var start = 1
+        while (start <= length) {
+            val chunk = attachmentDao.getDataChunk(id, start, CHUNK_SIZE) ?: return null
+            if (chunk.isEmpty()) break
+            out.write(chunk)
+            start += chunk.size
+        }
+        return out.toByteArray()
     }
 
-    override fun getStream(id: UUID): Flow<Attachment> {
-        return attachmentDao.getAttachmentStream(id)
+    override suspend fun getAllInfo(): List<AttachmentInfo> {
+        return attachmentDao.getAttachmentInfos()
     }
 
-    override suspend fun update(id: UUID, attachment: Attachment): Boolean {
-        // Ensure the attachment has the correct ID
-        val updatedAttachment = attachment.copy(id = id)
-        return attachmentDao.updateAttachment(updatedAttachment) > 0
+    override suspend fun replaceData(id: UUID, data: ByteArray): Boolean {
+        return attachmentDao.updateData(id, data) > 0
     }
 
     override suspend fun delete(id: UUID): Boolean {

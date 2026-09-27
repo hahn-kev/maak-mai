@@ -7,6 +7,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -28,6 +30,8 @@ fun SettingsScreen(
     ) { uri ->
         uri?.let { viewModel.importDatabase(it) }
     }
+
+    val optimizeState by viewModel.optimizeState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -67,6 +71,27 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(top = 8.dp)
             )
+
+            Spacer(modifier = Modifier.height(32.dp))
+            val running = optimizeState == SettingsViewModel.OptimizeState.Running
+            Button(
+                onClick = viewModel::optimizeImages,
+                enabled = !running,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (running) "Optimizing images…" else "Optimize Images")
+            }
+            Text(
+                text = when (val state = optimizeState) {
+                    is SettingsViewModel.OptimizeState.Done -> state.message
+                    else -> "Shrinks large images saved by older versions and removes images no bookmark uses."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+            if (running) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+            }
         }
     }
 }

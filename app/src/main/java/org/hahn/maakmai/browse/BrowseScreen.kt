@@ -95,6 +95,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import org.hahn.maakmai.R
+import org.hahn.maakmai.images.AttachmentImage
 import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
 import org.hahn.maakmai.ui.theme.FolderColors
@@ -535,10 +536,6 @@ fun BookmarkCard(bookmark: Bookmark, onOpen: (Bookmark) -> Unit = {}, onEdit: (B
     ) {
         // Check if the bookmark has an attachment image
         if (bookmark.imageAttachmentId != null) {
-            // Construct the URI for the attachment
-            val attachmentUri = Uri.parse("content://org.hahn.maakmai.attachment/${bookmark.imageAttachmentId}")
-
-            // Use AsyncImage to load the image from the URI
             run {
                 val aspectModifier = if (bookmark.imageWidth != null && bookmark.imageHeight != null && bookmark.imageWidth > 0 && bookmark.imageHeight > 0) {
                     val ratio = bookmark.imageWidth.toFloat() / bookmark.imageHeight.toFloat()
@@ -553,7 +550,7 @@ fun BookmarkCard(bookmark: Bookmark, onOpen: (Bookmark) -> Unit = {}, onEdit: (B
                         .fillMaxWidth()
                 }
                 AsyncImage(
-                    model = attachmentUri,
+                    model = AttachmentImage(bookmark.imageAttachmentId),
                     contentDescription = bookmark.description,
                     contentScale = ContentScale.FillWidth,
                     modifier = aspectModifier

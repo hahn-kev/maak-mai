@@ -79,6 +79,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import org.hahn.maakmai.images.AttachmentImages
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
@@ -555,7 +556,7 @@ private fun ImagePickerAndPreview(
             if (selectedImageUri != null) {
                 val painter = rememberAsyncImagePainter(
                     ImageRequest.Builder(context)
-                        .data(selectedImageUri)
+                        .data(AttachmentImages.imageModel(selectedImageUri))
                         .crossfade(true)
                         .build()
                 )
