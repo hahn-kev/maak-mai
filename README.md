@@ -1,5 +1,7 @@
 # Bookmark Tags — Android app
 
+[<img src="docs/images/badge_obtainium.png" alt="Get it on Obtainium" height="80">](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22org.hahn.maakmai%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fhahn-kev%2Fmaak-mai%22%2C%22author%22%3A%22hahn-kev%22%2C%22name%22%3A%22Maak%20Mai%22%7D)
+
 A simple, fast bookmark-keeping app where every bookmark can have multiple tags, and folders are “smart folders” that automatically include all bookmarks matching their tag.
 
 - Bookmarks: title, URL, optional notes
@@ -45,8 +47,23 @@ Setup:
 4. Select a device or emulator and click Run.
 
 Configuration (optional):
-- Update applicationId, minSdk, versionCode/Name in app module’s build.gradle(.kts).
+- Update applicationId and minSdk in app module’s build.gradle(.kts). versionCode/versionName come from the `VERSION_CODE`/`VERSION_NAME` environment variables (CI sets them on release; local builds default to 1 / "1.0").
 - Set your preferred compileOptions and Kotlin JVM target for JDK 21.
+
+## Releases and signing
+
+Install the app from the [GitHub Releases](https://github.com/hahn-kev/maak-mai/releases) page, or add it to [Obtainium](https://github.com/ImranR98/Obtainium) with the badge at the top of this README so it picks up new releases automatically.
+
+To publish a release, push a tag starting with `v`:
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+CI runs the tests, builds a release APK named `maak-mai-<tag>.apk`, and attaches it to a new GitHub Release with auto-generated notes. The tag becomes the versionName and the CI run number becomes the versionCode, so each release installs as an upgrade.
+
+Debug and release builds are both signed with `app/signing/maakmai.keystore`, which is committed to the repo on purpose. Builds from any machine or from CI then share one signature and install over each other without losing data. Because the key is public, anyone can sign an APK that installs over this app, so install APKs only from the Releases page.
 
 ## Project structure
 
