@@ -11,6 +11,7 @@ import org.hahn.maakmai.MaakMaiArgs.TITLE_ARG
 import org.hahn.maakmai.MaakMaiScreens.ADD_EDIT_BOOKMARK_SCREEN
 import org.hahn.maakmai.MaakMaiScreens.ADD_EDIT_FOLDER_SCREEN
 import org.hahn.maakmai.MaakMaiScreens.BROWSE_SCREEN
+import org.hahn.maakmai.MaakMaiScreens.BULK_ADD_SCREEN
 import org.hahn.maakmai.MaakMaiScreens.SETTINGS_SCREEN
 import org.hahn.maakmai.MaakMaiScreens.TAGS_SCREEN
 import java.util.UUID
@@ -21,6 +22,7 @@ private object MaakMaiScreens {
     const val ADD_EDIT_FOLDER_SCREEN = "addEditFolder"
     const val SETTINGS_SCREEN = "settings"
     const val TAGS_SCREEN = "tags"
+    const val BULK_ADD_SCREEN = "bulkAdd"
 }
 
 object MaakMaiArgs {
@@ -38,6 +40,7 @@ object MaakMaiDestinations {
     const val ADD_EDIT_FOLDER_ROUTE = "$ADD_EDIT_FOLDER_SCREEN/{$TITLE_ARG}?$FOLDER_ID_ARG={$FOLDER_ID_ARG}&$PARENT_PATH_ARG={$PARENT_PATH_ARG}"
     const val SETTINGS_ROUTE = SETTINGS_SCREEN
     const val TAGS_ROUTE = TAGS_SCREEN
+    const val BULK_ADD_ROUTE = "$BULK_ADD_SCREEN?$PATH_ARG={$PATH_ARG}"
 }
 
 class MaakMaiNavigationActions(private val navController: NavController) {
@@ -76,6 +79,10 @@ class MaakMaiNavigationActions(private val navController: NavController) {
 
     fun navigateToTags() {
         navController.navigate(TAGS_SCREEN)
+    }
+
+    fun navigateToBulkAdd(atPath: String) {
+        navController.navigate("$BULK_ADD_SCREEN?$PATH_ARG=$atPath")
     }
 
     /**

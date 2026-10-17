@@ -313,38 +313,17 @@ private fun AddEditBookmarkContent(
             )
         )
 
-        // Folder badge selector
-        if (folders.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(16.dp))
-            FolderBadgeSelector(
-                folders = folders,
-                selectedFolderPath = selectedFolderPath,
-                onFolderSelected = onFolderSelected,
-                onBackClicked = onRemoveLastFolder,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        // Folder tags selector
-        if (groupedFolderTags.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(16.dp))
-            FolderTagSelector(
-                onFolderTagToggled = onFolderTagToggled,
-                groupedFolderTags = groupedFolderTags,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        // Priority tags selector
-        if (priorityTags.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(16.dp))
-            TagSection(
-                tags = priorityTags,
-                onTagToggled = onPriorityTagToggled,
-                modifier = Modifier.fillMaxWidth(),
-                sectionTitle = "Priority Tags:"
-            )
-        }
+        TagPicker(
+            folders = folders,
+            selectedFolderPath = selectedFolderPath,
+            onFolderSelected = onFolderSelected,
+            onRemoveLastFolder = onRemoveLastFolder,
+            groupedFolderTags = groupedFolderTags,
+            onFolderTagToggled = onFolderTagToggled,
+            priorityTags = priorityTags,
+            onPriorityTagToggled = onPriorityTagToggled,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         // Image picker and preview
         Spacer(modifier = Modifier.height(16.dp))
@@ -392,148 +371,6 @@ private fun AddEditBookmarkContent(
 
         // Clearance so the last fields can scroll above the save FAB.
         Spacer(modifier = Modifier.height(72.dp))
-    }
-}
-
-@Composable
-private fun FolderBadgeSelector(
-    folders: List<TagFolder>,
-    selectedFolderPath: List<TagFolder>,
-    onFolderSelected: (TagFolder) -> Unit,
-    onBackClicked: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier) {
-        // Show navigation path
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp)
-                .horizontalScroll(rememberScrollState())
-        ) {
-            Text(
-                text = "Select Folders:",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold
-            )
-
-        }
-
-
-        // Show folder badges
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(bottom = 8.dp)
-        ) {
-            selectedFolderPath.forEachIndexed { index, folder ->
-                val last = index == selectedFolderPath.lastIndex
-                if (index > 0) {
-                    Text(" / ", style = MaterialTheme.typography.bodyMedium)
-                }
-                if (!last) {
-                    FilterChip(
-                        selected = true,
-                        enabled = false,
-                        onClick = { },
-                        label = { Text(folder.tag) },
-                    )
-                } else {
-                    FilterChip(
-                        selected = true,
-                        onClick = { onBackClicked() },
-                        label = { Text(folder.tag) },
-                        trailingIcon = { Icon(Icons.Default.Close, "Back") }
-                    )
-                }
-            }
-
-            Text(" / ", style = MaterialTheme.typography.bodyMedium)
-
-            // Get the current level folders
-            val currentFolders = if (selectedFolderPath.isEmpty()) {
-                // If no folder is selected, show root folders
-                folders.filter { it.rootFolder }
-            } else {
-                // Otherwise, show children of the last selected folder
-                selectedFolderPath.last().children
-            }
-
-            currentFolders.forEach { folder ->
-                FilterChip(
-                    selected = selectedFolderPath.any { it.id == folder.id },
-                    onClick = { onFolderSelected(folder) },
-                    label = { Text(folder.tag) },
-                    modifier = Modifier.padding(end = 8.dp)
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun TagSection(
-    tags: List<TagUiState>,
-    onTagToggled: (TagUiState) -> Unit,
-    modifier: Modifier = Modifier,
-    sectionTitle: String,
-    titleStyle: TextStyle = MaterialTheme.typography.bodyLarge,
-) {
-    Column(modifier = modifier) {
-        Text(
-            text = sectionTitle,
-            style = titleStyle,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Show priority tags
-        FlowRow(
-            modifier = Modifier
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            tags.forEach { tag ->
-                FilterChip(
-                    selected = tag.isSelected,
-                    onClick = { onTagToggled(tag) },
-                    label = {
-                        Text(tag.label ?: tag.tag)
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FolderTagSelector(
-    onFolderTagToggled: (TagGroup, TagUiState) -> Unit,
-    modifier: Modifier = Modifier,
-    groupedFolderTags: List<TagGroup> = emptyList()
-) {
-    Column(modifier = modifier) {
-        Text(
-            text = "Folder Tags:",
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        groupedFolderTags.forEach { group ->
-            TagSection(
-                tags = group.tags,
-                onTagToggled = { onFolderTagToggled(group, it) },
-                modifier = Modifier.fillMaxWidth(),
-                sectionTitle = group.prefix,
-                titleStyle = MaterialTheme.typography.bodyMedium
-            )
-        }
-
     }
 }
 

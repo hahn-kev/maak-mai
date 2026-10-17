@@ -111,6 +111,7 @@ fun BrowseScreen(
     onAddFolder: () -> Unit,
     onEditFolder: (UUID) -> Unit,
     onTagsClick: () -> Unit,
+    onBulkAddClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onBack: () -> Unit,
     viewModel: BrowseViewModel = hiltViewModel(),
@@ -253,6 +254,13 @@ fun BrowseScreen(
                                     },
                                     onClick = {
                                         viewModel.setShowAll(!uiState.showAll)
+                                        showOverflowMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Bulk add links") },
+                                    onClick = {
+                                        onBulkAddClick()
                                         showOverflowMenu = false
                                     }
                                 )
