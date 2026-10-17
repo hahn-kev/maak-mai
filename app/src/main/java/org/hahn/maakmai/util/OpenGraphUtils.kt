@@ -21,7 +21,9 @@ object OpenGraphUtils {
          * connection. Distinct from [url] (the `og:url` meta tag). Used to resolve
          * redirect shorteners without a separate network round-trip.
          */
-        val finalUrl: String? = null
+        val finalUrl: String? = null,
+        /** A short reason the page could not be fetched, or null when it was fetched. */
+        val error: String? = null
     )
 
     /**
@@ -34,7 +36,7 @@ object OpenGraphUtils {
         val page = PageFetcher.fetch(url)
         // Still report where we landed so redirect shorteners resolve even when the
         // destination doesn't serve a usable page (e.g. a bot challenge).
-        val html = page.html ?: return OpenGraphMetadata(finalUrl = page.finalUrl)
+        val html = page.html ?: return OpenGraphMetadata(finalUrl = page.finalUrl, error = page.error)
         return parseOpenGraphMetadata(html).copy(finalUrl = page.finalUrl)
     }
 

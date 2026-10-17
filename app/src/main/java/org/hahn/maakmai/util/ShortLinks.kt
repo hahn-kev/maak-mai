@@ -22,4 +22,11 @@ object ShortLinks {
             false
         }
     }
+
+    /**
+     * The URL to keep for [capturedUrl]: where the fetch landed ([finalUrl]) for a known
+     * short link, else [capturedUrl] unchanged.
+     */
+    fun resolve(capturedUrl: String, finalUrl: String?): String =
+        finalUrl?.takeIf { it.isNotBlank() && isShortLink(capturedUrl) } ?: capturedUrl
 }

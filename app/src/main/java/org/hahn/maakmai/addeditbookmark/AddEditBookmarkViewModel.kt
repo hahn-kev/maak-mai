@@ -1,40 +1,25 @@
 package org.hahn.maakmai.addeditbookmark
 
-import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import coil3.BitmapImage
-import coil3.ImageLoader
-import coil3.SingletonImageLoader
-import coil3.request.ImageRequest
-import coil3.request.allowHardware
-import coil3.request.allowRgb565
-import coil3.size.Precision
-import coil3.size.Scale
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.hahn.maakmai.MaakMaiArgs
 import org.hahn.maakmai.data.AttachmentRepository
 import org.hahn.maakmai.data.BookmarkRepository
 import org.hahn.maakmai.data.FolderRepository
 import org.hahn.maakmai.images.AttachmentImages
-import org.hahn.maakmai.images.EncodedImage
-import org.hahn.maakmai.images.MAX_IMAGE_DIMENSION
-import org.hahn.maakmai.images.shrinkAndEncode
+import org.hahn.maakmai.images.loadAndShrink
 import org.hahn.maakmai.model.Attachment
 import org.hahn.maakmai.model.Bookmark
 import org.hahn.maakmai.model.TagFolder
@@ -44,7 +29,6 @@ import org.hahn.maakmai.util.PageFetcher
 import org.hahn.maakmai.util.PageImages
 import org.hahn.maakmai.util.ShortLinks
 import org.hahn.maakmai.util.UrlTitleExtractor
-import java.io.ByteArrayOutputStream
 import java.util.UUID
 import javax.inject.Inject
 
@@ -121,9 +105,7 @@ class AddEditBookmarkViewModel @Inject constructor(
             loadBookmark(bookmarkId)
         }
         viewModelScope.launch {
-            val tags = bookmarkRepository.getTagsWithCount().entries.sortedByDescending { it.value }.map { tagsWithCount ->
-                TagUiState(tag = tagsWithCount.key, label = "${tagsWithCount.key} (${tagsWithCount.value})")
-            }
+            val tags = TagSelection.prioritisedTags(bookmarkRepository.getTagsWithCount())
             _uiState.update {
                 it.copy(tagsPrioritised = tags)
             }
@@ -131,7 +113,7 @@ class AddEditBookmarkViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         folders = folders,
-                        selectedFolderPath = path?.let { TagFolder(tag = "/", children = folders, id = UUID.randomUUID()).findFolders(it) } ?: emptyList())
+                        selectedFolderPath = TagSelection.folderPathFor(folders, path))
                 }
                 updateFolderTags()
             }
@@ -195,9 +177,7 @@ class AddEditBookmarkViewModel @Inject constructor(
 
                 // Adopt the resolved destination for known short links only, so
                 // ordinary links are never rewritten by an incidental redirect.
-                val resolvedUrl = openGraph.finalUrl
-                    ?.takeIf { it.isNotBlank() && ShortLinks.isShortLink(capturedUrl) }
-                    ?: capturedUrl
+                val resolvedUrl = ShortLinks.resolve(capturedUrl, openGraph.finalUrl)
                 if (resolvedUrl != capturedUrl) {
                     if (!urlEdited) {
                         _uiState.update { it.copy(url = resolvedUrl) }
@@ -286,20 +266,8 @@ class AddEditBookmarkViewModel @Inject constructor(
      * @param folder The folder to select
      */
     fun selectFolder(folder: TagFolder) {
-        val currentPath = _uiState.value.selectedFolderPath
-
-        // Check if this folder is already in the path
-        val existingIndex = currentPath.indexOfFirst { it.id == folder.id }
-        if (existingIndex != -1) {
-            // If it's already in the path, truncate the path to this folder
-            _uiState.update {
-                it.copy(selectedFolderPath = currentPath.subList(0, existingIndex + 1))
-            }
-        } else {
-            // Otherwise, add it to the path
-            _uiState.update {
-                it.copy(selectedFolderPath = currentPath + folder)
-            }
+        _uiState.update {
+            it.copy(selectedFolderPath = TagSelection.selectFolder(it.selectedFolderPath, folder))
         }
 
         // Update folder tags based on the new selected folder path
@@ -311,41 +279,9 @@ class AddEditBookmarkViewModel @Inject constructor(
      * Updates the folder tags based on the current selected folder path
      */
     private fun updateFolderTags() {
-        val currentPath = _uiState.value.selectedFolderPath
-        val allTags = _uiState.value.tagsPrioritised.map { it.tag }
-        val folderTags = if (currentPath.isNotEmpty()) {
-            // Get tag groups from the last selected folder
-            currentPath.asReversed().flatMap { it.tagGroups.sorted() }
-        } else {
-            emptyList()
-        }
-
-        // Group tags by prefix
-        val groupedTags = mutableListOf<TagGroup>()
-
-        // Process each tag
-        folderTags.forEach { tag ->
-            // Check if this tag should be a prefix (section header)
-            val matchingTags = allTags.filter { it != tag && it.startsWith(tag) }
-
-            if (matchingTags.isEmpty()) {
-                return@forEach
-            }
-            // This tag is a prefix for other tags
-            val prefixGroup = TagGroup(
-                prefix = tag,
-                tags = matchingTags.map { TagUiState(it, false, label = it.substring(tag.length + 1)) }
-            )
-
-            // Only add if not already added (avoid duplicates)
-            if (!groupedTags.any { it.prefix == tag }) {
-                groupedTags.add(prefixGroup)
-            }
-        }
-
         _uiState.update {
             it.copy(
-                groupedFolderTags = groupedTags
+                groupedFolderTags = TagSelection.groupFolderTags(it.selectedFolderPath, it.tagsPrioritised.map { tag -> tag.tag })
             )
         }
     }
@@ -423,19 +359,18 @@ class AddEditBookmarkViewModel @Inject constructor(
             }
             val image = resolveImage(existingBookmark)
 
-            val folderTags = uiState.value.selectedFolderPath.map { it.tag }
-            val priorityTags = uiState.value.tagsPrioritised.filter { it.isSelected }.map { it.tag }
-            val selectedFolderTags = uiState.value.groupedFolderTags.map { group ->
-                group.tags.filter { it.isSelected }.map { it.tag }
-            }.flatten()
-            val rawTags = uiState.value.tags.split(",").map {it.trim()} .filter { it.isNotBlank() }
             val bookmark =
                 Bookmark(
                     id = bookmarkId ?: UUID.randomUUID(),
                     title = uiState.value.title,
                     description = uiState.value.description,
                     url = uiState.value.url,
-                    tags = (rawTags + folderTags + priorityTags + selectedFolderTags).distinct(),
+                    tags = TagSelection.selectedTags(
+                        typedTags = uiState.value.tags,
+                        path = uiState.value.selectedFolderPath,
+                        priorityTags = uiState.value.tagsPrioritised,
+                        groupedFolderTags = uiState.value.groupedFolderTags
+                    ),
                     imageAttachmentId = image?.id,
                     imageWidth = image?.width,
                     imageHeight = image?.height,
@@ -475,7 +410,7 @@ class AddEditBookmarkViewModel @Inject constructor(
                 ?: StoredImage(storedId, null, null)
         }
 
-        val encoded = loadAndShrink(Uri.parse(selected)) ?: return existingImage
+        val encoded = loadAndShrink(context, Uri.parse(selected)) ?: return existingImage
         val attachmentId = UUID.randomUUID()
         attachmentRepository.create(
             Attachment(id = attachmentId, data = encoded.bytes, title = "Image for ${uiState.value.title}")
@@ -510,11 +445,8 @@ class AddEditBookmarkViewModel @Inject constructor(
      * @param tag The priority tag to toggle
      */
     fun togglePriorityTag(tag: TagUiState) {
-        val isSelected = tag.isSelected
-        _uiState.getAndUpdate { state ->
-            state.copy(
-                tagsPrioritised = state.tagsPrioritised.map { if (it.tag == tag.tag) it.copy(isSelected = !isSelected) else it }
-            )
+        _uiState.update { state ->
+            state.copy(tagsPrioritised = TagSelection.togglePriorityTag(state.tagsPrioritised, tag))
         }
         scheduleAutoSave()
     }
@@ -524,11 +456,8 @@ class AddEditBookmarkViewModel @Inject constructor(
      * @param tag The folder tag to toggle
      */
     fun toggleFolderTag(group: TagGroup, tag: TagUiState) {
-        val isSelected = tag.isSelected
-        _uiState.getAndUpdate { state ->
-            state.copy(
-                groupedFolderTags = state.groupedFolderTags.map { if (it.prefix == group.prefix) it.copy(tags = it.tags.map { if (it.tag == tag.tag) it.copy(isSelected = !isSelected) else it }) else it }
-            )
+        _uiState.update { state ->
+            state.copy(groupedFolderTags = TagSelection.toggleFolderTag(state.groupedFolderTags, group, tag))
         }
         scheduleAutoSave()
     }
@@ -569,28 +498,6 @@ class AddEditBookmarkViewModel @Inject constructor(
             it.copy(selectedImageUri = uri)
         }
         scheduleAutoSave()
-    }
-
-    /**
-     * Loads an image via Coil, scaled down to [MAX_IMAGE_DIMENSION], and encodes it for storage.
-     * Returns null if the image can't be loaded.
-     */
-    private suspend fun loadAndShrink(uri: Uri): EncodedImage? = withContext(Dispatchers.IO) {
-        try {
-            val request = ImageRequest.Builder(context)
-                .data(uri)
-                // Without a size Coil decodes at full resolution. Inexact lets it decode
-                // cheaply at up to twice the size; shrinkAndEncode then scales exactly.
-                .size(MAX_IMAGE_DIMENSION)
-                .precision(Precision.INEXACT)
-                .allowHardware(false)
-                .build()
-            val image = SingletonImageLoader.get(context).execute(request).image
-            (image as? BitmapImage)?.let { shrinkAndEncode(it.bitmap) }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
     }
 
     private companion object {

@@ -3,9 +3,14 @@ package org.hahn.maakmai.util
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.MalformedURLException
+import java.net.SocketTimeoutException
 import java.net.URL
+import java.net.UnknownHostException
 import java.nio.charset.StandardCharsets
+import javax.net.ssl.SSLException
 
 /**
  * Fetches a page's HTML. It asks as MaakMai first. Some sites (IMDb, for one) only serve
@@ -25,14 +30,19 @@ object PageFetcher {
         /** The page's HTML, or null if neither attempt returned a usable page. */
         val html: String?,
         /** Where the request landed after redirects, even when [html] is null. */
-        val finalUrl: String?
+        val finalUrl: String?,
+        /** A short reason the fetch failed, or null when [html] is set. */
+        val error: String? = null
     )
 
     suspend fun fetch(url: String): Page = withContext(Dispatchers.IO) {
         val first = fetchWith(url, USER_AGENT)
         if (first.html != null) return@withContext first
         val retry = fetchWith(url, LINK_PREVIEW_USER_AGENT)
-        if (retry.html != null) retry else first.copy(finalUrl = first.finalUrl ?: retry.finalUrl)
+        if (retry.html != null) retry else first.copy(
+            finalUrl = first.finalUrl ?: retry.finalUrl,
+            error = first.error ?: retry.error
+        )
     }
 
     private fun fetchWith(url: String, userAgent: String): Page {
@@ -52,16 +62,29 @@ object PageFetcher {
                 val finalUrl = connection.url?.toString()
                 if (responseCode != HttpURLConnection.HTTP_OK) {
                     Log.w(TAG, "HTTP $responseCode for $url as $userAgent")
-                    return Page(html = null, finalUrl = finalUrl)
+                    return Page(html = null, finalUrl = finalUrl, error = "HTTP $responseCode")
                 }
                 val html = connection.inputStream.use { it.readBytes().toString(StandardCharsets.UTF_8) }
-                Page(html = html.takeIf { it.length >= MIN_PAGE_LENGTH }, finalUrl = finalUrl)
+                if (html.length >= MIN_PAGE_LENGTH) {
+                    Page(html = html, finalUrl = finalUrl)
+                } else {
+                    Page(html = null, finalUrl = finalUrl, error = "Empty page")
+                }
             } finally {
                 connection.disconnect()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching $url: ${e.message}", e)
-            Page(html = null, finalUrl = null)
+            Page(html = null, finalUrl = null, error = describe(e))
         }
+    }
+
+    private fun describe(e: Exception): String = when (e) {
+        is UnknownHostException -> "Site not found"
+        is SocketTimeoutException -> "Timed out"
+        is SSLException -> "Secure connection failed"
+        is MalformedURLException -> "Not a valid link"
+        is IOException -> "Could not connect"
+        else -> e.message ?: e.javaClass.simpleName
     }
 }

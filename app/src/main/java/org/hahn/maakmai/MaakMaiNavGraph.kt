@@ -9,10 +9,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.CoroutineScope
@@ -25,6 +27,7 @@ import org.hahn.maakmai.MaakMaiArgs.TITLE_ARG
 import org.hahn.maakmai.addeditbookmark.AddEditBookmarkScreen
 import org.hahn.maakmai.addeditfolder.AddEditFolderScreen
 import org.hahn.maakmai.browse.BrowseScreen
+import org.hahn.maakmai.bulkadd.BulkAddScreen
 import org.hahn.maakmai.settings.SettingsScreen
 import org.hahn.maakmai.tags.TagsScreen
 
@@ -67,6 +70,7 @@ fun MaakMaiNavGraph(
                     navActions.navigateToEditFolder(folderId, currentPath, null)
                 },
                 onTagsClick = { navActions.navigateToTags() },
+                onBulkAddClick = { navActions.navigateToBulkAdd(currentPath) },
                 onSettingsClick = { navActions.navigateToSettings() },
                 onBack = { navController.popBackStack() }
             )
@@ -74,6 +78,17 @@ fun MaakMaiNavGraph(
         composable(MaakMaiDestinations.SETTINGS_ROUTE) {
             SettingsScreen(
                 onBack = { navController.popBackStack() }
+            )
+        }
+        dialog(
+            MaakMaiDestinations.BULK_ADD_ROUTE,
+            arguments = listOf(
+                navArgument(PATH_ARG) { type = NavType.StringType; defaultValue = "/" }
+            ),
+            dialogProperties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            BulkAddScreen(
+                onClose = { navController.popBackStack() }
             )
         }
         composable(MaakMaiDestinations.TAGS_ROUTE) {
