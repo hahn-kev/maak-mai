@@ -12,6 +12,7 @@ A simple, fast bookmark-keeping app where every bookmark can have multiple tags,
 
 - Add, edit, delete bookmarks with tags
 - Bulk add: paste text that contains links, review the fetched titles and images, and add the links you keep
+- Add tags to many bookmarks at once
 - Create tag-backed folders that auto-filter bookmarks
 - Search and sort within folders
 - Offline, local-first data
@@ -83,6 +84,7 @@ Debug and release builds are both signed with `app/signing/maakmai.keystore`, wh
 - Create a folder: the name of the folder is the tag, the folder shows all bookmarks with that tag.
 - Browse: open any folder to see its matching bookmarks. Search/sort inside.
 - Bulk add links: in the menu, select "Bulk add links". Paste text and select Process. The app finds each link and gets its title, description and image. Clear the links you do not want, then select Add. Links that fail to load show at the bottom with an error and are not selected, but you can select them. Above the list, pick tags for all the links with the same folders and tags as the Add screen. The current folder starts selected.
+- Add tags to many bookmarks: in the menu, select "Select bookmarks". Tap the bookmarks to tag, or use Select all, then select Add tags. Pick tags with the same folders and tags as the Add screen. The tags are added to every selected bookmark, and each bookmark keeps the tags it already has.
 
 ## Testing
 
