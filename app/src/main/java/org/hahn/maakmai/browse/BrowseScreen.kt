@@ -508,7 +508,7 @@ fun BrowseContent(
                 minSize = 180.dp
             ),
             content = {
-                item(span = StaggeredGridItemSpan.FullLine) {
+                item(key = "folders", contentType = "folders", span = StaggeredGridItemSpan.FullLine) {
                     val foldersPerRow = 3;
                     FlowRow(
                         maxItemsInEachRow = foldersPerRow,
@@ -529,7 +529,8 @@ fun BrowseContent(
                         }
                     }
                 }
-                items(bookmarks) { bookmark ->
+                // Keys let the grid keep each card in place when the list changes or is scrolled back
+                items(bookmarks, key = { it.id }, contentType = { "bookmark" }) { bookmark ->
                     if (selectedIds != null) {
                         BookmarkCard(
                             bookmark = bookmark,
@@ -646,23 +647,20 @@ fun BookmarkCard(
             // Check if the bookmark has an attachment image
             if (bookmark.imageAttachmentId != null) {
                 run {
-                    val aspectModifier = if (bookmark.imageWidth != null && bookmark.imageHeight != null && bookmark.imageWidth > 0 && bookmark.imageHeight > 0) {
-                        val ratio = bookmark.imageWidth.toFloat() / bookmark.imageHeight.toFloat()
-                        Modifier
-                            .clip(MaterialTheme.shapes.medium)
-                            .fillMaxWidth()
-                            .aspectRatio(ratio)
-                    } else {
-                        // Fallback: no known size yet
-                        Modifier
-                            .clip(MaterialTheme.shapes.medium)
-                            .fillMaxWidth()
+                    // The image box always has a fixed size, so the card doesn't grow when the
+                    // image loads. Growing cards above the viewport make the list jump when scrolling up.
+                    val knownRatio = bookmark.imageWidth?.takeIf { it > 0 }?.let { width ->
+                        bookmark.imageHeight?.takeIf { it > 0 }?.let { height -> width.toFloat() / height }
                     }
                     AsyncImage(
                         model = AttachmentImage(bookmark.imageAttachmentId),
                         contentDescription = bookmark.description,
-                        contentScale = ContentScale.FillWidth,
-                        modifier = aspectModifier
+                        // Until the size is recorded (see ImageOptimizer.recordMissingSizes), crop to the placeholder box
+                        contentScale = if (knownRatio != null) ContentScale.FillWidth else ContentScale.Crop,
+                        modifier = Modifier
+                            .clip(MaterialTheme.shapes.medium)
+                            .fillMaxWidth()
+                            .aspectRatio(knownRatio ?: UNKNOWN_IMAGE_RATIO)
                     )
                 }
             } else {
@@ -770,6 +768,9 @@ private fun RetagDialog(
         }
     )
 }
+
+/** Width to height of the image box for a stored image whose size isn't recorded yet. */
+private const val UNKNOWN_IMAGE_RATIO = 4f / 3f
 
 @OptIn(ExperimentalStdlibApi::class, ExperimentalLayoutApi::class)
 @Composable
