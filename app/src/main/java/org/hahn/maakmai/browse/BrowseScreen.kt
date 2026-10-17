@@ -3,6 +3,20 @@ package org.hahn.maakmai.browse
 import android.content.Intent
 import android.net.Uri
 import android.util.Patterns
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material3.ExtendedFloatingActionButton
+import org.hahn.maakmai.addeditbookmark.TagGroup
+import org.hahn.maakmai.addeditbookmark.TagPicker
+import org.hahn.maakmai.addeditbookmark.TagUiState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -119,6 +133,17 @@ fun BrowseScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val retagState by viewModel.retagState.collectAsStateWithLifecycle()
+    val userMessage by viewModel.userMessage.collectAsStateWithLifecycle()
+    val selectedIds = uiState.selectedIds
+
+    LaunchedEffect(userMessage) {
+        userMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.userMessageShown()
+        }
+    }
+    BackHandler(enabled = selectedIds != null) { viewModel.stopSelecting() }
 
     // State for search dialog
     var showSearchDialog by remember { mutableStateOf(false) }
@@ -143,152 +168,186 @@ fun BrowseScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // FAB for adding a folder
-                SmallFloatingActionButton(
-                    onClick = { onAddFolder() }
+            if (selectedIds != null) {
+                if (selectedIds.isNotEmpty()) {
+                    ExtendedFloatingActionButton(
+                        onClick = viewModel::openRetag,
+                        icon = { Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null) },
+                        text = { Text("Add tags") }
+                    )
+                }
+            } else {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.CreateNewFolder,
-                        contentDescription = "Add folder",
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                    // FAB for adding a folder
+                    SmallFloatingActionButton(
+                        onClick = { onAddFolder() }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CreateNewFolder,
+                            contentDescription = "Add folder",
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
 
-                // FAB for adding a bookmark
-                SmallFloatingActionButton(onClick = onAddBookmark) {
-                    Icon(
-                        imageVector = Icons.Default.BookmarkAdd,
-                        contentDescription = "Add bookmark",
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                FloatingActionButton(onClick = { onSearch() }) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        modifier = Modifier.size(24.dp)
-                    )
+                    // FAB for adding a bookmark
+                    SmallFloatingActionButton(onClick = onAddBookmark) {
+                        Icon(
+                            imageVector = Icons.Default.BookmarkAdd,
+                            contentDescription = "Add bookmark",
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    FloatingActionButton(onClick = { onSearch() }) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
         },
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = uiState.path)
-                        // Show search indicator if search query is not empty
-                        if (uiState.searchQuery.isNotEmpty()) {
-                            Text(
-                                text = " (Search: ${uiState.searchQuery})",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+            if (selectedIds != null) {
+                TopAppBar(
+                    title = { Text("${selectedIds.size} selected") },
+                    navigationIcon = {
+                        IconButton(onClick = viewModel::stopSelecting) {
+                            Icon(Icons.Default.Close, "Stop selecting")
                         }
-                    }
-                },
-                actions = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Edit folder button - only visible when not at root
-                        if (uiState.path != "/") {
-                            uiState.currentFolderId?.let { folderId ->
-                                IconButton(onClick = { onEditFolder(folderId) }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Edit,
-                                        contentDescription = "Edit folder"
-                                    )
-                                }
-                            }
+                    },
+                    actions = {
+                        IconButton(onClick = viewModel::selectAllVisible) {
+                            Icon(Icons.Default.SelectAll, "Select all")
                         }
-                        Box {
-                            IconButton(onClick = { showSortMenu = true }) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Sort,
-                                    contentDescription = "Sort bookmarks"
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                TopAppBar(
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = uiState.path)
+                            // Show search indicator if search query is not empty
+                            if (uiState.searchQuery.isNotEmpty()) {
+                                Text(
+                                    text = " (Search: ${uiState.searchQuery})",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
-                            DropdownMenu(
-                                expanded = showSortMenu,
-                                onDismissRequest = { showSortMenu = false }
-                            ) {
-                                BookmarkSort.entries.forEach { sortOrder ->
+                        }
+                    },
+                    actions = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Edit folder button - only visible when not at root
+                            if (uiState.path != "/") {
+                                uiState.currentFolderId?.let { folderId ->
+                                    IconButton(onClick = { onEditFolder(folderId) }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Edit folder"
+                                        )
+                                    }
+                                }
+                            }
+                            Box {
+                                IconButton(onClick = { showSortMenu = true }) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.Sort,
+                                        contentDescription = "Sort bookmarks"
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = showSortMenu,
+                                    onDismissRequest = { showSortMenu = false }
+                                ) {
+                                    BookmarkSort.entries.forEach { sortOrder ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    if (sortOrder == uiState.sortOrder) {
+                                                        "✓ ${sortOrder.label}"
+                                                    } else {
+                                                        sortOrder.label
+                                                    }
+                                                )
+                                            },
+                                            onClick = {
+                                                viewModel.setSortOrder(sortOrder)
+                                                showSortMenu = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            Box {
+                                IconButton(onClick = { showOverflowMenu = true }) {
+                                    Icon(
+                                        imageVector = Icons.Default.MoreVert,
+                                        contentDescription = "More options"
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = showOverflowMenu,
+                                    onDismissRequest = { showOverflowMenu = false }
+                                ) {
                                     DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                if (sortOrder == uiState.sortOrder) {
-                                                    "✓ ${sortOrder.label}"
-                                                } else {
-                                                    sortOrder.label
-                                                }
+                                        text = { Text("Show all") },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = if (uiState.showAll) Icons.Default.Check else Icons.Default.CheckBoxOutlineBlank,
+                                                contentDescription = null
                                             )
                                         },
                                         onClick = {
-                                            viewModel.setSortOrder(sortOrder)
-                                            showSortMenu = false
+                                            viewModel.setShowAll(!uiState.showAll)
+                                            showOverflowMenu = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Select bookmarks") },
+                                        onClick = {
+                                            viewModel.startSelecting()
+                                            showOverflowMenu = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Bulk add links") },
+                                        onClick = {
+                                            onBulkAddClick()
+                                            showOverflowMenu = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Tags") },
+                                        onClick = {
+                                            onTagsClick()
+                                            showOverflowMenu = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Settings") },
+                                        onClick = {
+                                            onSettingsClick()
+                                            showOverflowMenu = false
                                         }
                                     )
                                 }
                             }
                         }
-                        Box {
-                            IconButton(onClick = { showOverflowMenu = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.MoreVert,
-                                    contentDescription = "More options"
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = showOverflowMenu,
-                                onDismissRequest = { showOverflowMenu = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Show all") },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = if (uiState.showAll) Icons.Default.Check else Icons.Default.CheckBoxOutlineBlank,
-                                            contentDescription = null
-                                        )
-                                    },
-                                    onClick = {
-                                        viewModel.setShowAll(!uiState.showAll)
-                                        showOverflowMenu = false
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Bulk add links") },
-                                    onClick = {
-                                        onBulkAddClick()
-                                        showOverflowMenu = false
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Tags") },
-                                    onClick = {
-                                        onTagsClick()
-                                        showOverflowMenu = false
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Settings") },
-                                    onClick = {
-                                        onSettingsClick()
-                                        showOverflowMenu = false
-                                    }
-                                )
-                            }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                         }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         },
     ) { paddingValues ->
         BrowseContent(
@@ -309,7 +368,22 @@ fun BrowseScreen(
             },
             onBookmarkEdit = { onEditBookmark(it.id) },
             onAddBookmark = onAddBookmark,
-            onAddFolder = onAddFolder
+            onAddFolder = onAddFolder,
+            selectedIds = selectedIds,
+            onToggleSelected = { viewModel.toggleSelected(it.id) }
+        )
+    }
+
+    retagState?.let { retag ->
+        RetagDialog(
+            state = retag,
+            onTagsChanged = viewModel::updateRetagTags,
+            onFolderSelected = viewModel::selectRetagFolder,
+            onRemoveLastFolder = viewModel::removeLastRetagFolder,
+            onPriorityTagToggled = viewModel::toggleRetagPriorityTag,
+            onFolderTagToggled = viewModel::toggleRetagFolderTag,
+            onConfirm = viewModel::applyRetag,
+            onDismiss = viewModel::dismissRetag
         )
     }
 
@@ -414,6 +488,9 @@ fun BrowseContent(
     onBookmarkEdit: (Bookmark) -> Unit = {},
     onAddBookmark: () -> Unit = {},
     onAddFolder: () -> Unit = {},
+    /** The selected bookmark ids while selecting, or null when not selecting. */
+    selectedIds: Set<UUID>? = null,
+    onToggleSelected: (Bookmark) -> Unit = {},
 ) {
     if (isLoading) {
         Box(
@@ -442,7 +519,8 @@ fun BrowseContent(
                                     .height(120.dp)
                                     .weight(1f),
                                 folder = tagFolder.folder,
-                                onOpen = { onFolderClick(tagFolder) }
+                                // Opening a folder would lose the selection
+                                onOpen = { if (selectedIds == null) onFolderClick(tagFolder) }
                             )
                         }
                         // Fill the remaining space with empty cards
@@ -452,11 +530,20 @@ fun BrowseContent(
                     }
                 }
                 items(bookmarks) { bookmark ->
-                    BookmarkCard(
-                        bookmark = bookmark,
-                        onOpen = onBookmarkClick,
-                        onEdit = onBookmarkEdit
-                    )
+                    if (selectedIds != null) {
+                        BookmarkCard(
+                            bookmark = bookmark,
+                            selected = bookmark.id in selectedIds,
+                            onOpen = onToggleSelected,
+                            onEdit = onToggleSelected
+                        )
+                    } else {
+                        BookmarkCard(
+                            bookmark = bookmark,
+                            onOpen = onBookmarkClick,
+                            onEdit = onBookmarkEdit
+                        )
+                    }
                 }
             }
         )
@@ -533,68 +620,155 @@ fun EmptyStateView(modifier: Modifier = Modifier, onAddBookmark: () -> Unit = {}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun BookmarkCard(bookmark: Bookmark, onOpen: (Bookmark) -> Unit = {}, onEdit: (Bookmark) -> Unit = {}) {
-    Card(
-        modifier = Modifier
-            .padding(8.dp)
-            .combinedClickable(
-                onClick = { onOpen(bookmark) },
-                onLongClick = { onEdit(bookmark) }
-            )
-    ) {
-        // Check if the bookmark has an attachment image
-        if (bookmark.imageAttachmentId != null) {
-            run {
-                val aspectModifier = if (bookmark.imageWidth != null && bookmark.imageHeight != null && bookmark.imageWidth > 0 && bookmark.imageHeight > 0) {
-                    val ratio = bookmark.imageWidth.toFloat() / bookmark.imageHeight.toFloat()
-                    Modifier
-                        .clip(MaterialTheme.shapes.medium)
-                        .fillMaxWidth()
-                        .aspectRatio(ratio)
-                } else {
-                    // Fallback: no known size yet
-                    Modifier
-                        .clip(MaterialTheme.shapes.medium)
-                        .fillMaxWidth()
+fun BookmarkCard(
+    bookmark: Bookmark,
+    onOpen: (Bookmark) -> Unit = {},
+    onEdit: (Bookmark) -> Unit = {},
+    /** Whether the card is selected while selecting bookmarks, or null when not selecting. */
+    selected: Boolean? = null
+) {
+    Box {
+        Card(
+            modifier = Modifier
+                .padding(8.dp)
+                .then(
+                    if (selected == true) {
+                        Modifier.border(3.dp, MaterialTheme.colorScheme.primary, CardDefaults.shape)
+                    } else {
+                        Modifier
+                    }
+                )
+                .combinedClickable(
+                    onClick = { onOpen(bookmark) },
+                    onLongClick = { onEdit(bookmark) }
+                )
+        ) {
+            // Check if the bookmark has an attachment image
+            if (bookmark.imageAttachmentId != null) {
+                run {
+                    val aspectModifier = if (bookmark.imageWidth != null && bookmark.imageHeight != null && bookmark.imageWidth > 0 && bookmark.imageHeight > 0) {
+                        val ratio = bookmark.imageWidth.toFloat() / bookmark.imageHeight.toFloat()
+                        Modifier
+                            .clip(MaterialTheme.shapes.medium)
+                            .fillMaxWidth()
+                            .aspectRatio(ratio)
+                    } else {
+                        // Fallback: no known size yet
+                        Modifier
+                            .clip(MaterialTheme.shapes.medium)
+                            .fillMaxWidth()
+                    }
+                    AsyncImage(
+                        model = AttachmentImage(bookmark.imageAttachmentId),
+                        contentDescription = bookmark.description,
+                        contentScale = ContentScale.FillWidth,
+                        modifier = aspectModifier
+                    )
                 }
-                AsyncImage(
-                    model = AttachmentImage(bookmark.imageAttachmentId),
-                    contentDescription = bookmark.description,
-                    contentScale = ContentScale.FillWidth,
-                    modifier = aspectModifier
+            } else {
+                // Calculate deterministic color from bookmark title
+                val colorSeed = bookmark.title.hashCode()
+                val folderColor = FolderColors[Math.abs(colorSeed) % FolderColors.size]
+
+                // Use the placeholder with calculated background color if there's no attachment
+                Box(
+                    modifier = Modifier
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(folderColor)
+                        .height(100.dp)
+                        .fillMaxWidth()
                 )
             }
-        } else {
-            // Calculate deterministic color from bookmark title
-            val colorSeed = bookmark.title.hashCode()
-            val folderColor = FolderColors[Math.abs(colorSeed) % FolderColors.size]
 
-            // Use the placeholder with calculated background color if there's no attachment
-            Box(
-                modifier = Modifier
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(folderColor)
-                    .height(100.dp)
-                    .fillMaxWidth()
-            )
-        }
-
-        Text(
-            modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            text = bookmark.title,
-            style = MaterialTheme.typography.titleMedium,
-            maxLines = 3
-        )
-        if (bookmark.description != null && !bookmark.description.isEmpty()) {
             Text(
-                text = bookmark.description,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 4.dp),
+                modifier = Modifier
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                text = bookmark.title,
+                style = MaterialTheme.typography.titleMedium,
                 maxLines = 3
+            )
+            if (bookmark.description != null && !bookmark.description.isEmpty()) {
+                Text(
+                    text = bookmark.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                    maxLines = 3
+                )
+            }
+        }
+        if (selected != null) {
+            Icon(
+                imageVector = if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                contentDescription = if (selected) "Selected" else "Not selected",
+                tint = if (selected) MaterialTheme.colorScheme.primary else Color.White,
+                modifier = Modifier
+                    .padding(16.dp)
+                    .background(
+                        if (selected) MaterialTheme.colorScheme.surface else Color.Black.copy(alpha = 0.4f),
+                        CircleShape
+                    )
             )
         }
     }
+}
+
+/** A pop-up that picks tags to add to every selected bookmark. */
+@Composable
+private fun RetagDialog(
+    state: RetagUiState,
+    onTagsChanged: (String) -> Unit,
+    onFolderSelected: (TagFolder) -> Unit,
+    onRemoveLastFolder: () -> Unit,
+    onPriorityTagToggled: (TagUiState) -> Unit,
+    onFolderTagToggled: (TagGroup, TagUiState) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val bookmarks = if (state.bookmarkCount == 1) "1 bookmark" else "${state.bookmarkCount} bookmarks"
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add tags to $bookmarks") },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                TagPicker(
+                    folders = state.folders,
+                    selectedFolderPath = state.selectedFolderPath,
+                    onFolderSelected = onFolderSelected,
+                    onRemoveLastFolder = onRemoveLastFolder,
+                    groupedFolderTags = state.groupedFolderTags,
+                    onFolderTagToggled = onFolderTagToggled,
+                    priorityTags = state.tagsPrioritised,
+                    onPriorityTagToggled = onPriorityTagToggled,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = state.tags,
+                    onValueChange = onTagsChanged,
+                    label = { Text("Tags (comma-separated)") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp)
+                )
+                val tagsToAdd = state.tagsToAdd
+                Text(
+                    text = if (tagsToAdd.isEmpty()) "No tags picked" else "Adds: ${tagsToAdd.joinToString(", ")}",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = state.tagsToAdd.isNotEmpty() && !state.isSaving) {
+                Text("Add tags")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalStdlibApi::class, ExperimentalLayoutApi::class)
