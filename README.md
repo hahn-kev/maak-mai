@@ -55,12 +55,16 @@ Configuration (optional):
 
 Install the app from the [GitHub Releases](https://github.com/hahn-kev/maak-mai/releases) page, or add it to [Obtainium](https://github.com/ImranR98/Obtainium) with the badge at the top of this README so it picks up new releases automatically.
 
-To publish a release, push a tag starting with `v`:
+To publish a release from the GitHub website, open the Actions tab, select the **Create release** workflow, select **Run workflow**, and type the version (for example `1.2.0`). The workflow tags the selected branch (`main` by default) as `v1.2.0` and starts CI on that tag.
+
+You can also push a tag starting with `v` yourself:
 
 ```bash
 git tag v1.2.0
 git push origin v1.2.0
 ```
+
+Do not use "Draft a new release" on GitHub to make the tag: CI then fails to publish, because the release already exists.
 
 CI runs the tests, builds a release APK named `maak-mai-<tag>.apk`, and attaches it to a new GitHub Release with auto-generated notes. The tag becomes the versionName and the CI run number becomes the versionCode, so each release installs as an upgrade.
 

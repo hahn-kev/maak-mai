@@ -6,6 +6,7 @@ on:
     tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch: # started on a tag by release.yml
 
 jobs:
   build-and-test:
