@@ -1,0 +1,47 @@
+name: Create release
+
+# Run from the Actions tab: tags the chosen branch (main by default) and starts CI on the
+# tag, which builds the APK and publishes the GitHub Release.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, for example 1.2.0 (the tag is v1.2.0)'
+        required: true
+        type: string
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the tag
+      actions: write # start the CI run on the tag
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Create and push tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          TAG="v${VERSION#v}"
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must look like 1.2.0, got '$VERSION'"
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
+            echo "::error::Tag $TAG already exists"
+            exit 1
+          fi
+          git tag "$TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$TAG"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+
+      # A tag pushed with GITHUB_TOKEN does not trigger the CI push event, but a
+      # workflow_dispatch from GITHUB_TOKEN does, so start CI on the tag directly.
+      - name: Start the release build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run ci.yml --ref "$TAG"
+          echo "Tagged $TAG at $GITHUB_SHA. CI is building the release: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/ci.yml" >> "$GITHUB_STEP_SUMMARY"
