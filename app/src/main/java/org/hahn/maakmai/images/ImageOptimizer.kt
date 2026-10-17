@@ -30,6 +30,10 @@ fun planImageCleanup(attachments: List<AttachmentInfo>, bookmarks: List<Bookmark
     return ImageCleanupPlan(unused = unused.map { it.id }, toShrink = toShrink.map { it.id })
 }
 
+/** Bookmarks with a stored image whose size isn't recorded, so their cards can't reserve space for it. */
+fun bookmarksMissingImageSize(bookmarks: List<Bookmark>): List<Bookmark> =
+    bookmarks.filter { it.imageAttachmentId != null && (it.imageWidth == null || it.imageHeight == null) }
+
 data class ImageCleanupResult(val shrunk: Int, val removed: Int)
 
 /** Shrinks images stored before resizing was added, and removes images no bookmark uses. */
@@ -62,5 +66,20 @@ class ImageOptimizer @Inject constructor(
 
         plan.unused.forEach { attachmentRepository.delete(it) }
         ImageCleanupResult(shrunk = shrunk, removed = plan.unused.size)
+    }
+
+    /**
+     * Records the size of stored images that don't have one yet. Only the image header
+     * is decoded, so this is cheap enough to run on every start.
+     */
+    suspend fun recordMissingSizes(): Int = withContext(Dispatchers.IO) {
+        var recorded = 0
+        for (bookmark in bookmarksMissingImageSize(bookmarkRepository.getBookmarksByTags(emptyList()))) {
+            val bytes = attachmentRepository.getData(bookmark.imageAttachmentId!!) ?: continue
+            val (width, height) = imageSize(bytes) ?: continue
+            bookmarkRepository.updateBookmark(bookmark.copy(imageWidth = width, imageHeight = height))
+            recorded++
+        }
+        recorded
     }
 }
